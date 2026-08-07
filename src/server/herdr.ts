@@ -26,12 +26,25 @@ const herdrWorkspaceSchema = z
   })
   .readonly()
 
+const herdrTabSchema = z
+  .object({
+    tab_id: z.string(),
+    workspace_id: z.string(),
+    number: z.number().int(),
+    label: z.string(),
+    focused: z.boolean(),
+    pane_count: z.number().int(),
+    agent_status: z.string(),
+  })
+  .readonly()
+
 const herdrSnapshotSchema = z
   .object({
     snapshot: z
       .object({
         version: z.string(),
         workspaces: z.array(herdrWorkspaceSchema).readonly().default([]),
+        tabs: z.array(herdrTabSchema).readonly().default([]),
         agents: z.array(z.record(z.string(), z.unknown()).readonly()).readonly().default([]),
       })
       .readonly(),
@@ -93,6 +106,10 @@ export class HerdrClient {
 
   async focusWorkspace(workspaceId: string): Promise<void> {
     await this.request("workspace.focus", { workspace_id: workspaceId })
+  }
+
+  async focusTab(tabId: string): Promise<void> {
+    await this.request("tab.focus", { tab_id: tabId })
   }
 
   async snapshot(): Promise<HerdrSnapshot> {

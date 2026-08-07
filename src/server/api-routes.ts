@@ -20,7 +20,10 @@ import type { SessionStore } from "./session-store.ts"
 
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 const loginSchema = z.object({ password: z.string().min(1).max(1024) }).readonly()
-const focusWorkspaceSchema = z.object({ workspaceId: z.string().min(1).max(64) }).readonly()
+const focusWorkspaceSchema = z.union([
+  z.object({ workspaceId: z.string().min(1).max(64) }).readonly(),
+  z.object({ tabId: z.string().min(1).max(64) }).readonly(),
+])
 const createSessionSchema = z
   .object({
     title: z.string().min(1).max(64).optional(),
@@ -123,7 +126,8 @@ async function handleHerdrFocus(req: Request, ctx: ApiContext): Promise<Response
   if (!body.success) return json({ error: "invalid-body" }, 400)
   try {
     await ctx.herdr.ensureRunning()
-    await ctx.herdr.focusWorkspace(body.data.workspaceId)
+    if ("tabId" in body.data) await ctx.herdr.focusTab(body.data.tabId)
+    else await ctx.herdr.focusWorkspace(body.data.workspaceId)
     return json({ ok: true })
   } catch (error) {
     if (error instanceof HerdrError) return json({ status: "unavailable", reason: error.code }, 503)

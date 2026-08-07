@@ -15,6 +15,17 @@ const SNAPSHOT_RESULT = {
     version: "0.8.0",
     protocol: 19,
     focused_workspace_id: "w1",
+    tabs: [
+      {
+        tab_id: "w1:t1",
+        workspace_id: "w1",
+        number: 1,
+        label: "main",
+        focused: true,
+        pane_count: 1,
+        agent_status: "unknown",
+      },
+    ],
     workspaces: [
       {
         workspace_id: "w1",
@@ -43,6 +54,8 @@ function startMockHerdr(socketPath: string): MockServer {
             socket.write(`${JSON.stringify({ id: request.id, ...body })}\n`)
           }
           if (request.method === "ping") respond({ result: { type: "pong" } })
+          else if (request.method === "tab.focus")
+            respond({ result: { type: "tab_info", tab: { tab_id: "w1:t1" } } })
           else if (request.method === "workspace.focus")
             respond({
               result: { type: "workspace_info", workspace: { workspace_id: "w9" } },
@@ -88,6 +101,24 @@ describe("HerdrClient", () => {
     const snapshot = await client.snapshot()
     expect(snapshot.snapshot.version).toBe("0.8.0")
     expect(snapshot.snapshot.workspaces[0]?.label).toBe("web-terminal")
+  })
+
+  test("snapshot preserves the tabs array", async () => {
+    dir = await mkdtemp(join(tmpdir(), "wt-herdr-"))
+    const sock = join(dir, "herdr.sock")
+    mock = startMockHerdr(sock)
+    const client = new HerdrClient({ socketPath: sock })
+    const snapshot = await client.snapshot()
+    expect(snapshot.snapshot.tabs?.[0]?.tab_id).toBe("w1:t1")
+    expect(snapshot.snapshot.tabs?.[0]?.focused).toBe(true)
+  })
+
+  test("focusTab round-trips tab.focus over the socket", async () => {
+    dir = await mkdtemp(join(tmpdir(), "wt-herdr-"))
+    const sock = join(dir, "herdr.sock")
+    mock = startMockHerdr(sock)
+    const client = new HerdrClient({ socketPath: sock })
+    await expect(client.focusTab("w1:t1")).resolves.toBeUndefined()
   })
 
   test("focusWorkspace round-trips workspace.focus over the socket", async () => {
