@@ -83,28 +83,35 @@ export function attachTouchScroll(
     )
   }
 
-  const onTouchEnd = (): void => {
+  const onTouchEnd = (event: TouchEvent): void => {
     cancelLongPress()
     if (selecting) {
       selecting = false
       options.onSelectEnd?.()
+      event.stopPropagation()
       lastY = undefined
       dragging = false
       return
     }
+    // ghostty's canvas touchend focuses the input on EVERY touch, so a scroll
+    // flick would summon the keyboard; swallow the event for drags, let taps
+    // through (tap-to-focus is onTap's job).
+    if (dragging) event.stopPropagation()
     if (!dragging && lastY !== undefined) options.onTap?.()
     lastY = undefined
     dragging = false
   }
 
-  container.addEventListener("touchstart", onTouchStart, { passive: true })
-  container.addEventListener("touchmove", onTouchMove, { passive: false })
-  container.addEventListener("touchend", onTouchEnd, { passive: true })
-  container.addEventListener("touchcancel", onTouchEnd, { passive: true })
+  // Capture phase: run before ghostty's canvas-level touch handlers so a drag
+  // can stop the event from ever reaching them.
+  container.addEventListener("touchstart", onTouchStart, { capture: true, passive: true })
+  container.addEventListener("touchmove", onTouchMove, { capture: true, passive: false })
+  container.addEventListener("touchend", onTouchEnd, { capture: true, passive: false })
+  container.addEventListener("touchcancel", onTouchEnd, { capture: true, passive: false })
   return () => {
-    container.removeEventListener("touchstart", onTouchStart)
-    container.removeEventListener("touchmove", onTouchMove)
-    container.removeEventListener("touchend", onTouchEnd)
-    container.removeEventListener("touchcancel", onTouchEnd)
+    container.removeEventListener("touchstart", onTouchStart, { capture: true })
+    container.removeEventListener("touchmove", onTouchMove, { capture: true })
+    container.removeEventListener("touchend", onTouchEnd, { capture: true })
+    container.removeEventListener("touchcancel", onTouchEnd, { capture: true })
   }
 }

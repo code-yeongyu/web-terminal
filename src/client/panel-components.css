@@ -23,6 +23,10 @@
   text-align: start;
 }
 
+.row--sub {
+  padding-inline-start: var(--space-6);
+}
+
 .row--action:hover {
   background: var(--accent-muted);
 }

@@ -15,6 +15,18 @@ const workspaceSchema = z
 
 const agentSchema = z.record(z.string(), z.unknown()).readonly()
 
+const tabSchema = z
+  .object({
+    tab_id: z.string(),
+    workspace_id: z.string(),
+    number: z.number(),
+    label: z.string(),
+    focused: z.boolean(),
+    pane_count: z.number(),
+    agent_status: z.string(),
+  })
+  .readonly()
+
 const snapshotSchema = z
   .object({
     status: z.string(),
@@ -22,6 +34,7 @@ const snapshotSchema = z
       .object({
         version: z.string(),
         workspaces: z.array(workspaceSchema).readonly().optional(),
+        tabs: z.array(tabSchema).readonly().optional(),
         agents: z.array(agentSchema).readonly().optional(),
       })
       .readonly()
@@ -30,6 +43,7 @@ const snapshotSchema = z
   .readonly()
 
 export type Workspace = z.infer<typeof workspaceSchema>
+export type Tab = z.infer<typeof tabSchema>
 export type Snapshot = z.infer<typeof snapshotSchema>
 
 export type HerdrState = {
@@ -42,6 +56,7 @@ export type HerdrStore = {
   readonly subscribe: (listener: (state: HerdrState) => void) => () => void
   readonly setPanelVisible: (visible: boolean) => void
   readonly focusWorkspace: (workspaceId: string) => void
+  readonly focusTab: (tabId: string) => void
   readonly dispose: () => void
 }
 
@@ -109,6 +124,23 @@ export function createHerdrStore(): HerdrStore {
   document.addEventListener("visibilitychange", onVisibilityChange)
   poll()
 
+  function requestFocus(body: Readonly<Record<string, string>>): void {
+    void apiRequest("/api/herdr/focus", {
+      schema: focusResponseSchema,
+      init: {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    })
+      .catch((error: unknown) => {
+        if (!(error instanceof Error)) throw error
+      })
+      // Refresh regardless of outcome: success shows the new focus, failure
+      // repaints the state that actually holds.
+      .finally(poll)
+  }
+
   return {
     subscribe: (listener) => {
       listeners.add(listener)
@@ -117,22 +149,8 @@ export function createHerdrStore(): HerdrStore {
         listeners.delete(listener)
       }
     },
-    focusWorkspace: (workspaceId) => {
-      void apiRequest("/api/herdr/focus", {
-        schema: focusResponseSchema,
-        init: {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ workspaceId }),
-        },
-      })
-        .catch((error: unknown) => {
-          if (!(error instanceof Error)) throw error
-        })
-        // Refresh regardless of outcome: success shows the new focus, failure
-        // repaints the state that actually holds.
-        .finally(poll)
-    },
+    focusWorkspace: (workspaceId) => requestFocus({ workspaceId }),
+    focusTab: (tabId) => requestFocus({ tabId }),
     setPanelVisible: (visible) => {
       if (visible === panelVisible) return
       panelVisible = visible

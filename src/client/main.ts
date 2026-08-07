@@ -88,7 +88,9 @@ async function renderApp(): Promise<void> {
       const active = document.activeElement
       if (active instanceof HTMLElement) active.blur()
     },
-    focusTerminal: () => terminalApp?.terminal.focus(),
+    // The textarea, never terminal.focus(): ghostty focuses its contenteditable
+    // container, whose prevented beforeinput silently drops IME text.
+    focusTerminal: () => terminalApp?.terminal.textarea?.focus(),
     onError: (message) => toaster.show(message, "error"),
     onLatchChange: () => undefined,
   })

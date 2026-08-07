@@ -155,6 +155,53 @@ async function run() {
     await page.close()
   }
 
+  // ---- H4: tab rows render under workspaces and clicking focuses that tab ----
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+    const focusedTab = () =>
+      page.evaluate(async () => {
+        const res = await fetch("/api/herdr/snapshot")
+        const data = await res.json()
+        return (data.snapshot?.tabs ?? []).find((t) => t.focused)?.tab_id
+      })
+    await login(page)
+    await page.waitForSelector("[data-tab]", { timeout: 10000 })
+    const tabs = await page.evaluate(async () => {
+      const res = await fetch("/api/herdr/snapshot")
+      const data = await res.json()
+      return (data.snapshot?.tabs ?? []).map((t) => ({ id: t.tab_id, focused: t.focused }))
+    })
+    const original = tabs.find((t) => t.focused)
+    const target = tabs.find((t) => !t.focused)
+    if (original === undefined || target === undefined) {
+      record("H4 tab row click focuses tab", false, "need 2+ tabs to test")
+    } else {
+      await page.click(`[data-tab="${target.id}"]`)
+      await page.waitForFunction(
+        async (id) => {
+          const res = await fetch("/api/herdr/snapshot")
+          const data = await res.json()
+          return (data.snapshot?.tabs ?? []).find((t) => t.tab_id === id)?.focused === true
+        },
+        target.id,
+        { timeout: 8000, polling: 500 },
+      )
+      await page.waitForSelector(`[data-tab="${original.id}"]`, { timeout: 8000 })
+      await page.click(`[data-tab="${original.id}"]`)
+      await page.waitForFunction(
+        async (id) => {
+          const res = await fetch("/api/herdr/snapshot")
+          const data = await res.json()
+          return (data.snapshot?.tabs ?? []).find((t) => t.tab_id === id)?.focused === true
+        },
+        original.id,
+        { timeout: 8000, polling: 500 },
+      )
+      record("H4 tab row click focuses tab", true, `tab ${original.id} -> ${target.id} -> restored`)
+    }
+    await page.close()
+  }
+
   // ---- I1/I2/I3: inline preedit at the cursor ----
   for (const profile of ["desktop", "mobile"]) {
     const context =

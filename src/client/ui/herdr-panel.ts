@@ -1,4 +1,4 @@
-import type { HerdrState, HerdrStore, Snapshot, Workspace } from "../herdr-store.ts"
+import type { HerdrState, HerdrStore, Snapshot, Tab, Workspace } from "../herdr-store.ts"
 import { button, dot, el, replace } from "./dom.ts"
 
 export type HerdrPanel = {
@@ -37,6 +37,25 @@ function agentRow(agent: Readonly<Record<string, unknown>>, index: number): HTML
   ])
 }
 
+function tabRow(tab: Tab, onFocusTab: (id: string) => void): HTMLElement {
+  const row = button(
+    {
+      class: "row row--action row--sub",
+      "data-tab": tab.tab_id,
+      "aria-label": `Focus tab ${tab.label}`,
+      ...(tab.focused ? { "aria-current": "true" } : {}),
+    },
+    [
+      el("span", { class: "row__label", title: tab.label }, [`${tab.number}. ${tab.label}`]),
+      el("span", { class: "row__meta" }, [`${tab.pane_count}p`]),
+    ],
+    () => {
+      if (!tab.focused) onFocusTab(tab.tab_id)
+    },
+  )
+  return el("li", { class: "list__item" }, [row])
+}
+
 function workspaceRow(workspace: Workspace, onFocus: (id: string) => void): HTMLElement {
   const meta = `${workspace.pane_count}p ${workspace.tab_count}t`
   const row = button(
@@ -73,8 +92,13 @@ function emptyState(title: string, hint: string): HTMLElement {
   ])
 }
 
-function snapshotNodes(data: Snapshot, onFocus: (id: string) => void): readonly HTMLElement[] {
+function snapshotNodes(
+  data: Snapshot,
+  onFocus: (id: string) => void,
+  onFocusTab: (id: string) => void,
+): readonly HTMLElement[] {
   const workspaces = data.snapshot?.workspaces ?? []
+  const tabs = data.snapshot?.tabs ?? []
   const agents = data.snapshot?.agents ?? []
   if (workspaces.length === 0 && agents.length === 0) {
     return [emptyState("No active workspaces.", "Agents will appear here when they start.")]
@@ -86,7 +110,12 @@ function snapshotNodes(data: Snapshot, onFocus: (id: string) => void): readonly 
       el(
         "ul",
         { class: "list" },
-        workspaces.map((workspace) => workspaceRow(workspace, onFocus)),
+        workspaces.flatMap((workspace) => {
+          const children = tabs
+            .filter((tab) => tab.workspace_id === workspace.workspace_id)
+            .map((tab) => tabRow(tab, onFocusTab))
+          return [workspaceRow(workspace, onFocus), ...children]
+        }),
       ),
     )
   }
@@ -97,7 +126,11 @@ function snapshotNodes(data: Snapshot, onFocus: (id: string) => void): readonly 
   return nodes
 }
 
-function stateNodes(state: HerdrState, onFocus: (id: string) => void): readonly HTMLElement[] {
+function stateNodes(
+  state: HerdrState,
+  onFocus: (id: string) => void,
+  onFocusTab: (id: string) => void,
+): readonly HTMLElement[] {
   switch (state.status) {
     case "connecting":
       return [emptyState("Connecting to herdr…", "Reading workspaces and agents.")]
@@ -106,7 +139,7 @@ function stateNodes(state: HerdrState, onFocus: (id: string) => void): readonly 
         emptyState("herdr is unavailable.", "Start the herdr server to see workspaces and agents."),
       ]
     case "connected":
-      return state.snapshot === undefined ? [] : snapshotNodes(state.snapshot, onFocus)
+      return state.snapshot === undefined ? [] : snapshotNodes(state.snapshot, onFocus, onFocusTab)
   }
 }
 
@@ -117,7 +150,7 @@ export function createHerdrPanel(store: HerdrStore): HerdrPanel {
   let pending: HerdrState | undefined
 
   const paint = (state: HerdrState): void => {
-    replace(body, stateNodes(state, store.focusWorkspace))
+    replace(body, stateNodes(state, store.focusWorkspace, store.focusTab))
   }
 
   const unsubscribe = store.subscribe((state) => {
