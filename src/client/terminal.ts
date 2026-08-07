@@ -27,13 +27,9 @@ export type TerminalApp = {
 }
 
 const SESSION_STORAGE_KEY = "wt:session-id"
+// Pinch-zoom writes here; ui/theme.ts terminalFontSize() restores it at boot so
+// the size a user chose survives reloads (Termius behavior).
 const FONT_SIZE_STORAGE_KEY = "wt:font-size"
-// Pinch-zoom is per-gesture; users expect the size they chose to survive reloads
-// (Termius behavior), so it persists outside the session id's lifecycle.
-function storedFontSize(): number | undefined {
-  const parsed = Number(localStorage.getItem(FONT_SIZE_STORAGE_KEY))
-  return Number.isFinite(parsed) && parsed >= 8 && parsed <= 24 ? parsed : undefined
-}
 // Native Ghostty computes cell height from the font's vertical metrics
 // (ascent+descent+lineGap over em). JetBrains Mono's is 1.32em; ghostty-web's
 // "M"-bounding-box heuristic (~1.14em) renders noticeably tighter. GeistMono's

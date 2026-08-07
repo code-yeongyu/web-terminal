@@ -181,7 +181,9 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
       }
       cap.dataset["pressed"] = "true"
       fire(def)
-      actions.focusTerminal()
+      // Every key hands focus back to the terminal except the one whose whole
+      // job is to release it.
+      if (def.id !== "kbd-hide") actions.focusTerminal()
       if (!REPEATING.has(def.id) || !("send" in def)) return
       const send = def.send
       repeatDelay = setTimeout(() => {

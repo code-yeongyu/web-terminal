@@ -155,10 +155,8 @@ async function run() {
     const after = await page.evaluate(() => ({
       rows: globalThis.__wt.terminal.rows,
       shellH: document.querySelector(".shell")?.getBoundingClientRect().height,
-      toolbarBottom: document
-        .querySelector(".keybar")
-        ?.closest(".stack")
-        ?.getBoundingClientRect().bottom,
+      toolbarBottom: document.querySelector(".keybar")?.closest(".stack")?.getBoundingClientRect()
+        .bottom,
     }))
     const pass =
       Math.abs((after.shellH ?? 0) - 470) <= 1 &&
@@ -433,10 +431,25 @@ async function run() {
     const { context, page } = await newMobilePage(browser)
     const pinched = await page.evaluate(async () => {
       const container = document.querySelector(".terminal")
-      const mk = (id, x, y) => new Touch({ identifier: id, target: container, clientX: x, clientY: y })
-      container.dispatchEvent(new TouchEvent("touchstart", { touches: [mk(1, 150, 350), mk(2, 230, 350)], bubbles: true, cancelable: true }))
-      container.dispatchEvent(new TouchEvent("touchmove", { touches: [mk(1, 110, 350), mk(2, 270, 350)], bubbles: true, cancelable: true }))
-      container.dispatchEvent(new TouchEvent("touchend", { touches: [], bubbles: true, cancelable: true }))
+      const mk = (id, x, y) =>
+        new Touch({ identifier: id, target: container, clientX: x, clientY: y })
+      container.dispatchEvent(
+        new TouchEvent("touchstart", {
+          touches: [mk(1, 150, 350), mk(2, 230, 350)],
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      container.dispatchEvent(
+        new TouchEvent("touchmove", {
+          touches: [mk(1, 110, 350), mk(2, 270, 350)],
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      container.dispatchEvent(
+        new TouchEvent("touchend", { touches: [], bubbles: true, cancelable: true }),
+      )
       await new Promise((r) => setTimeout(r, 300))
       return globalThis.__wt.terminal.options.fontSize
     })
@@ -492,6 +505,97 @@ async function run() {
       "K2 keybar hides the virtual keyboard on demand",
       exists && focusedBefore && blurredAfter,
       `hide key exists=${exists} focusedBefore=${focusedBefore} blurredAfter=${blurredAfter}`,
+    )
+    await context.close()
+  }
+
+  // ---- T2: panel lists scroll with a native touch drag (CDP input pipeline) ----
+  {
+    const { context, page } = await newMobilePage(browser)
+    const buttons = await page.locator("header button, .topbar button").all()
+    for (const btn of buttons) {
+      const label = await btn.getAttribute("aria-label")
+      if (label?.toLowerCase().includes("panel") || label?.toLowerCase().includes("menu")) {
+        await btn.tap()
+        break
+      }
+    }
+    await page.waitForTimeout(700)
+    await page.getByRole("tab", { name: "Files" }).tap()
+    await page.waitForTimeout(1500)
+    const cdp = await context.newCDPSession(page)
+    const scroller = () =>
+      page.evaluate(() => {
+        const bodies = [...document.querySelectorAll(".scroll-body")]
+        const body = bodies.find((el) => el.scrollHeight > el.clientHeight)
+        if (body === undefined) return null
+        const rect = body.getBoundingClientRect()
+        return {
+          x: Math.round(rect.x + rect.width / 2),
+          y: Math.round(rect.y + rect.height / 2),
+          scrollTop: body.scrollTop,
+        }
+      })
+    const start = await scroller()
+    if (start === null) {
+      record("T2 panel scrolls on native touch drag", false, "no overflowing panel scroller")
+    } else {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x: start.x, y: start.y }],
+      })
+      for (let step = 1; step <= 6; step++) {
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x: start.x, y: start.y - step * 30 }],
+        })
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+      await page.waitForTimeout(500)
+      const end = await scroller()
+      record(
+        "T2 panel scrolls on native touch drag",
+        end !== null && end.scrollTop > start.scrollTop,
+        `scrollTop ${start.scrollTop} -> ${end?.scrollTop}`,
+      )
+    }
+    await context.close()
+  }
+
+  // ---- T3: drag-scroll never summons the keyboard; a tap does ----
+  {
+    const { context, page } = await newMobilePage(browser)
+    const result = await page.evaluate(async () => {
+      const textarea = document.querySelector(".terminal textarea")
+      if (document.activeElement === textarea) textarea.blur()
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 100))
+      const container = document.querySelector(".terminal")
+      const canvas = container.querySelector("canvas")
+      const mk = (y) => new Touch({ identifier: 8, target: canvas, clientX: 180, clientY: y })
+      const fire = (type, y) =>
+        canvas.dispatchEvent(
+          new TouchEvent(type, {
+            touches: type === "touchend" ? [] : [mk(y)],
+            changedTouches: [mk(y)],
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+      fire("touchstart", 400)
+      for (let step = 1; step <= 5; step++) fire("touchmove", 400 - step * 15)
+      fire("touchend", 325)
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 200))
+      const focusAfterDrag = document.activeElement === textarea
+      fire("touchstart", 400)
+      fire("touchend", 400)
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 200))
+      const focusAfterTap = document.activeElement === textarea
+      return { focusAfterDrag, focusAfterTap }
+    })
+    record(
+      "T3 drag keeps keyboard down, tap raises it",
+      !result.focusAfterDrag && result.focusAfterTap,
+      `focus after drag=${result.focusAfterDrag} (want false), after tap=${result.focusAfterTap} (want true)`,
     )
     await context.close()
   }

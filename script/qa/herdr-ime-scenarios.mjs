@@ -117,7 +117,7 @@ async function run() {
         return workspaces.map((w) => ({ id: w.workspace_id, focused: w.focused }))
       })
     await login(page)
-    await page.waitForSelector('[data-workspace]', { timeout: 10000 })
+    await page.waitForSelector("[data-workspace]", { timeout: 10000 })
     const before = await snapshotOf()
     const original = before.find((w) => w.focused)
     const target = before.find((w) => !w.focused)
@@ -129,7 +129,9 @@ async function run() {
         async (id) => {
           const res = await fetch("/api/herdr/snapshot")
           const data = await res.json()
-          return (data.snapshot?.workspaces ?? []).find((w) => w.workspace_id === id)?.focused === true
+          return (
+            (data.snapshot?.workspaces ?? []).find((w) => w.workspace_id === id)?.focused === true
+          )
         },
         target.id,
         { timeout: 8000, polling: 500 },
@@ -141,7 +143,9 @@ async function run() {
         async (id) => {
           const res = await fetch("/api/herdr/snapshot")
           const data = await res.json()
-          return (data.snapshot?.workspaces ?? []).find((w) => w.workspace_id === id)?.focused === true
+          return (
+            (data.snapshot?.workspaces ?? []).find((w) => w.workspace_id === id)?.focused === true
+          )
         },
         original.id,
         { timeout: 8000, polling: 500 },
@@ -158,12 +162,6 @@ async function run() {
   // ---- H4: tab rows render under workspaces and clicking focuses that tab ----
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
-    const focusedTab = () =>
-      page.evaluate(async () => {
-        const res = await fetch("/api/herdr/snapshot")
-        const data = await res.json()
-        return (data.snapshot?.tabs ?? []).find((t) => t.focused)?.tab_id
-      })
     await login(page)
     await page.waitForSelector("[data-tab]", { timeout: 10000 })
     const tabs = await page.evaluate(async () => {
