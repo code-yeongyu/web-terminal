@@ -28,7 +28,12 @@ type SidebarActions = {
 }
 
 export function createSidebar(actions: SidebarActions): Sidebar {
-  const panelHost = el("div", { class: "stack", id: "sidebar-panel", tabindex: "0" })
+  const panelHost = el("div", {
+    class: "stack",
+    id: "sidebar-panel",
+    role: "tabpanel",
+    tabindex: "0",
+  })
   let active: SidebarTab = "herdr"
   let overlay: Overlay | undefined
   let afterDrawerClose: (() => void) | undefined
@@ -45,6 +50,7 @@ export function createSidebar(actions: SidebarActions): Sidebar {
 
   const select = (tab: SidebarTab): void => {
     active = tab
+    panelHost.setAttribute("aria-labelledby", `sidebar-tab-${tab}`)
     for (const [id, node] of tabs) {
       const selected = id === tab
       node.setAttribute("aria-selected", selected ? "true" : "false")
@@ -57,6 +63,7 @@ export function createSidebar(actions: SidebarActions): Sidebar {
     const node = button(
       {
         class: "tab",
+        id: `sidebar-tab-${id}`,
         role: "tab",
         "aria-selected": id === active ? "true" : "false",
         "aria-controls": "sidebar-panel",
@@ -158,10 +165,12 @@ export function createSidebar(actions: SidebarActions): Sidebar {
     if (isMobile() || !dockedVisible) {
       replace(dockedHost, [])
       dockedHost.setAttribute("hidden", "")
+      actions.onDrawerChange(false)
       return
     }
     dockedHost.removeAttribute("hidden")
     replace(dockedHost, [header(false), strip, panelHost])
+    actions.onDrawerChange(true)
   }
 
   function toggle(): void {
@@ -172,7 +181,6 @@ export function createSidebar(actions: SidebarActions): Sidebar {
     }
     dockedVisible = !dockedVisible
     relayout()
-    actions.onDrawerChange(false)
   }
 
   select("herdr")

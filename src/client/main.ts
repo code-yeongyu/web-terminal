@@ -22,6 +22,7 @@ const app: HTMLElement = appRoot
 async function renderApp(): Promise<void> {
   const toaster = createToaster()
   const terminalRegion = el("main", { class: "terminal", "aria-label": "Terminal" })
+  let terminalApp: TerminalApp | undefined
 
   const topBar = createTopBar({
     onToggleSidebar: () => {
@@ -34,6 +35,7 @@ async function renderApp(): Promise<void> {
         background: shell,
         currentSessionId: () => terminalApp?.connection.sessionId,
         onAttach: (id) => terminalApp?.switchSession(id),
+        onConfirm: (message, onConfirm) => openConfirm({ message, background: shell, onConfirm }),
         onToast: toaster.show,
       }),
   })
@@ -67,20 +69,6 @@ async function renderApp(): Promise<void> {
     herdrIndicator.setAttribute("aria-label", label)
   })
 
-  const sidebar = createSidebar({
-    files: filesPanel,
-    herdr: herdrPanel,
-    herdrIndicator,
-    background: terminalRegion,
-    onDrawerChange: (open) => {
-      topBar.setSidebarExpanded(open)
-      // Keep the toggle tappable above the open drawer (see shell-components.css).
-      shell.dataset["drawerOpen"] = open ? "true" : "false"
-      // Latches must not survive an overlay opening (DESIGN.md 5.9).
-      if (open) toolbar.clearLatches()
-    },
-  })
-
   const toolbar = createToolbar({
     sendKeys: (data) => terminalApp?.sendKeys(data),
     paste: (text) => terminalApp?.paste(text),
@@ -95,13 +83,23 @@ async function renderApp(): Promise<void> {
     onLatchChange: () => undefined,
   })
 
+  const sidebar = createSidebar({
+    files: filesPanel,
+    herdr: herdrPanel,
+    herdrIndicator,
+    background: terminalRegion,
+    onDrawerChange: (open) => {
+      topBar.setSidebarExpanded(open)
+      if (open) toolbar.resetModifiers()
+    },
+  })
+
   const shellBody = el("div", { class: "shell__body" }, [terminalRegion, sidebar.element])
   const shell = el("div", { class: "shell" }, [topBar.element, shellBody])
   if (isMobile()) shell.appendChild(toolbar.element)
 
   app.replaceChildren(shell, toaster.element)
 
-  let terminalApp: TerminalApp | undefined
   const created = await createTerminalApp(terminalRegion, terminalTheme, {
     onState: (state) => {
       topBar.setState(state)
@@ -123,6 +121,7 @@ async function renderApp(): Promise<void> {
       ),
   })
   terminalApp = created
+  created.terminal.textarea?.addEventListener("compositionstart", toolbar.resetModifiers)
 
   // QA hook consumed by script/qa/e2e-scenarios.mjs. Object.assign avoids an `as` cast.
   Object.assign(globalThis, { __wt: created })
@@ -156,7 +155,7 @@ async function renderApp(): Promise<void> {
     if (!mods.ctrl && !mods.alt) return false
     if (event.key.length !== 1) return false
     created.sendKeys(applyLatches(event.key, mods))
-    toolbar.clearLatches()
+    toolbar.consumeLatches()
     return true
   })
 
@@ -203,20 +202,25 @@ function applyResponsiveLayout(
   requestAnimationFrame(() => {
     requestAnimationFrame(() => terminalApp.fit())
   })
-  // The toolbar rides the on-screen keyboard's top edge (DESIGN.md 4.5).
-  // 100dvh ignores the iOS keyboard (it overlays the layout viewport), so the
-  // shell must be sized from visualViewport, the only signal that shrinks.
+  // Root viewport variables size both the shell and body-level overlays without
+  // transforming an ancestor of the IME textarea/preedit coordinate chain.
   const viewport = window.visualViewport
   if (viewport !== null && viewport !== undefined) {
     const rideKeyboard = (): void => {
       const keyboardUp = viewport.height < window.innerHeight - 1
       if (keyboardUp) {
-        shell.style.blockSize = `${viewport.height}px`
-        shell.style.transform = viewport.offsetTop > 0 ? `translateY(${viewport.offsetTop}px)` : ""
+        document.documentElement.style.setProperty(
+          "--visual-viewport-height",
+          `${viewport.height}px`,
+        )
+        document.documentElement.style.setProperty(
+          "--visual-viewport-offset-top",
+          `${viewport.offsetTop}px`,
+        )
         window.scrollTo(0, 0)
       } else {
-        shell.style.blockSize = ""
-        shell.style.transform = ""
+        document.documentElement.style.removeProperty("--visual-viewport-height")
+        document.documentElement.style.removeProperty("--visual-viewport-offset-top")
       }
       terminalApp.fit()
     }

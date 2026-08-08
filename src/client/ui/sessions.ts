@@ -26,6 +26,7 @@ type SessionPickerActions = {
   readonly background: HTMLElement
   readonly currentSessionId: () => SessionId | undefined
   readonly onAttach: (id: SessionId) => void
+  readonly onConfirm: (message: string, onConfirm: () => void) => void
   readonly onToast: (message: string, tone: "success" | "error" | "info") => void
 }
 
@@ -65,6 +66,26 @@ export function openSessionPicker(actions: SessionPickerActions): void {
     ])
   }
 
+  const showLoading = (): void => {
+    replace(body, [
+      el("div", { class: "empty", "aria-busy": "true" }, [
+        el("p", { class: "empty__title" }, ["Loading sessions…"]),
+        el("p", { class: "empty__hint" }, ["Reading active terminal sessions."]),
+      ]),
+    ])
+  }
+
+  const showError = (message: string): void => {
+    const retry = button({ class: "btn btn--secondary" }, ["Retry"], load)
+    replace(body, [
+      el("div", { class: "empty" }, [
+        el("p", { class: "empty__title" }, ["Could not load sessions."]),
+        el("p", { class: "empty__hint" }, [message]),
+        retry,
+      ]),
+    ])
+  }
+
   const rowFor = (session: SessionInfo): HTMLElement => {
     const current = session.id === actions.currentSessionId()
     const label =
@@ -89,7 +110,7 @@ export function openSessionPicker(actions: SessionPickerActions): void {
       `Kill ${label} (${session.id.slice(0, SESSION_ID_PREVIEW_LENGTH)})`,
       "close",
       "danger",
-      () => void remove(session.id, label),
+      () => actions.onConfirm(`Kill ${label}?`, () => void remove(session.id, label)),
     )
     return el("li", { class: "list__item" }, [main, el("span", { class: "row__actions" }, [kill])])
   }
@@ -106,6 +127,7 @@ export function openSessionPicker(actions: SessionPickerActions): void {
   }
 
   function load(): void {
+    showLoading()
     void apiRequest("/api/sessions", { schema: listResponseSchema })
       .then((data) => {
         if (data.sessions.length === 0) {
@@ -116,8 +138,14 @@ export function openSessionPicker(actions: SessionPickerActions): void {
         replace(body, [list])
       })
       .catch((error: unknown) => {
-        if (error instanceof Error) actions.onToast(error.message, "error")
-        else actions.onToast(errorMessage(error, "Could not list sessions"), "error")
+        if (error instanceof Error) {
+          showError(error.message)
+          actions.onToast(error.message, "error")
+          return
+        }
+        const message = errorMessage(error, "Could not list sessions")
+        showError(message)
+        actions.onToast(message, "error")
       })
   }
 

@@ -14,6 +14,7 @@ One line per research lane. A lane with no line did not run.
   - **Adopted from Raycast**: blue-tinted near-black canvas, `rgba(255,255,255,0.06)` hairline containment borders, ring + inset depth over drop shadows, key-cap anatomy, opacity-based hover transitions, weight 500 as the UI body baseline.
   - **Deliberately rejected from Raycast**: positive letter-spacing (+0.2px) is a marketing-page readability trick and actively harms dense terminal-adjacent UI at 12-13px, so tracking is neutral-to-negative here; the 86px pill CTA (wrong register for a tool); Inter as the shipped webfont (violates this project's low-bandwidth ethos - system stack instead); Raycast Red as brand punctuation (reassigned to error-only, because a terminal already owns red semantically via ANSI).
 - **StyleGallery (`github.com/changeroa/StyleGallery`, user-mandated)**: fetched and read via `raw.githubusercontent.com` - `layout/index.md`, `motion/index.md`, `motion/vocabulary.md`, `patterns/viewport-shell/index.md`, `patterns/viewport-shell/scroll-body-shell.md`, `patterns/viewport-shell/panel-layout.md`, `patterns/split-sidebar/main-with-rail.md`, `patterns/overlay-exception/overlay-stack.md`, `patterns/overlay-exception/imposter.md`, `patterns/in-line-grouping/reel.md`, `patterns/in-line-grouping/tab-strip.md`, `patterns/containment/index.md`, `recipes/command-surface.md`, `quality/gates/layout.md`, and the `governed-local/terminal` button state + keyboard matrices. Patterns adopted and the constraints they impose are binding rules in **Section 4.4 (StyleGallery Layout Contract)** and **Section 6.3 (StyleGallery Motion Boundary)**. Headline constraints taken: named scroll ownership per region (Layout Principle 7), one primary spatial problem per primitive (Principle 3), no decorative or animated properties in reusable layout CSS (Principle 8 + the Motion domain's explicit scope boundary), `min-block-size: 0` / `min-inline-size: 0` on every grid child that owns scroll or must shrink, and the `command-surface` recipe's rule that fixed command regions live *outside* the body scroll container.
+- **Herdr live runtime (`herdr.dev`, user-mandated visual reference)**: captured in real Chromium at 1440px and inspected with `getComputedStyle`. Adopted: zero-radius structural cells, one-pixel neutral borders, shadowless chrome, compact mono metadata, explicit state dots, near-black layering, and accent-only hover/focus borders. Deliberately retained from this product instead of copying Herdr: the existing blue accent, the Section 2 accessible ANSI palette, 44px mobile targets, sans-serif navigation labels, fixed 320px desktop rail, and modest rounding only where a control must remain distinct from a structural cell.
 - **Lazyweb lane**: **skipped**. Reason: task-mandated network-cost skip. `lazyweb.md` is a curl-heavy real-product screen-research lane; the visual direction was already pinned by an explicit brand reference (Raycast-grade dark craft) plus a hard low-bandwidth ethos, so the marginal direction gained does not justify the fetch budget.
 - **Imagen drafts lane**: **skipped**. Reason: task-mandated network-cost skip, and the deliverable is a written contract with no component code. There is no reference-fidelity image to diff against; the ANSI palette and the ghostty theme object are the fidelity contract instead.
 - **ui-ux-db sanity check**: **skipped**. Reason: no network/CLI budget in this task scope. Palette and type pairing are instead sanity-checked mechanically against the WCAG floors recorded in Section 8.1, computed from the token values in Section 2.
@@ -236,10 +237,10 @@ Radii - one system, applied consistently (`taste-skill.md` Shape Consistency Loc
 
 | Token | Value | Usage |
 |---|---|---|
-| `--radius-xs` | 3px | Status chips, inline code |
-| `--radius-sm` | 5px | Key caps, tabs, small buttons |
-| `--radius-md` | 7px | Buttons, inputs, list rows, toasts |
-| `--radius-lg` | 10px | Dialogs, login card, drawer panel |
+| `--radius-none` | 0 | Shell seams, tabs, sidebars, rows, mobile full-screen dialogs |
+| `--radius-xs` | 2px | Key caps, compact icon controls, status chips |
+| `--radius-sm` | 4px | Buttons, inputs, toasts, login card |
+| `--radius-overlay` | 4px | Desktop dialogs and drawer inline-start corners |
 | `--radius-full` | 9999px | Status dot only |
 
 Z-index - a single documented scale (`taste-skill.md` Section 6.F). No arbitrary values anywhere in the codebase.
@@ -323,7 +324,7 @@ Consequences that are non-negotiable: the terminal and the sidebar never share a
 
 Shell rows: `grid-template-rows: auto minmax(0, 1fr) auto`. Desktop columns: `grid-template-columns: minmax(0, 1fr) var(--size-sidebar)`. The key toolbar row collapses to `0` at `>= --bp-md`; it is not rendered at all, not merely hidden.
 
-**Cursor-line guarantee** (hard product constraint): the terminal region's block size is computed as viewport minus top bar minus key toolbar minus safe areas, and ghostty-web is resized to that box. Because the key toolbar is a *sibling grid row* and not an overlay, the last terminal line can never sit underneath it. When the on-screen keyboard opens, the shell binds to `visualViewport` and the toolbar rides the keyboard's top edge while the terminal region shrinks - the cursor line stays visible by construction. The drawer, being an overlay, is the one exception: it deliberately covers the terminal, and per Section 6 it is dismissed by scrim tap, `Escape`, or swipe.
+**Cursor-line guarantee** (hard product constraint): the terminal region's block size is computed as viewport minus top bar minus key toolbar minus safe areas, and ghostty-web is resized to that box. Because the key toolbar is a *sibling grid row* and not an overlay, the last terminal line can never sit underneath it. When the on-screen keyboard opens, root visual-viewport variables size and inset both the shell and any body-level overlay; no ancestor between the terminal textarea and the viewport is transformed, so IME candidate and preedit coordinates remain stable. The toolbar rides the keyboard's top edge while the terminal region shrinks. The drawer deliberately covers the terminal and owns its own visible header/close control below the shell top bar.
 
 ### 4.6 Breakpoints
 
@@ -345,7 +346,7 @@ Each primitive lists structure, variants, spacing, the full state set, accessibi
 
 - **Structure**: `<button type="..." class="btn btn--{variant}"><span class="btn__icon"/><span class="btn__label"/></button>`
 - **Variants**: `primary` (accent fill, `--text-inverse` label), `secondary` (transparent, `--border-default` stroke), `ghost` (no fill, no stroke, `--text-secondary` label), `danger` (transparent, `--status-error` label and stroke).
-- **Spacing**: block-size `--size-control` (`--size-control-touch` below `--bp-md`); `padding-inline: --space-3`; icon-to-label gap `--space-1`; radius `--radius-md`; `--text-body-strong`.
+- **Spacing**: block-size `--size-control` (`--size-control-touch` below `--bp-md`); `padding-inline: --space-3`; icon-to-label gap `--space-1`; radius `--radius-sm`; `--text-body-strong`.
 - **States**:
   - default - as per variant.
   - hover - opacity `0.72` on `primary`/`danger` (Raycast opacity-transition pattern); `--surface-raised` fill on `secondary`/`ghost`.
@@ -362,7 +363,7 @@ Each primitive lists structure, variants, spacing, the full state set, accessibi
 
 - **Structure**: `<div class="field"><label for/><input id/><p class="field__msg" role="status"|role="alert"/></div>`
 - **Variants**: `text`, `password` (login), `search` (sidebar file filter).
-- **Spacing**: block-size `--size-control` / `--size-control-touch`; `padding-inline: --space-3`; label-to-input gap `--space-2`; input-to-message gap `--space-2`; radius `--radius-md`; fill `--surface-secondary`; stroke `--border-default`.
+- **Spacing**: block-size `--size-control` / `--size-control-touch`; `padding-inline: --space-3`; label-to-input gap `--space-2`; input-to-message gap `--space-2`; radius `--radius-sm`; fill `--surface-secondary`; stroke `--border-default`.
 - **States**: default; hover - stroke `--border-strong`; focus-visible - stroke `--accent-primary` plus `--accent-muted` halo, no glow bloom; filled; disabled - `opacity: 0.5`; error - stroke `--status-error`, fill `--status-error-wash`, message in `--status-error` with `role="alert"`; loading - input goes `readonly` with `aria-busy`, never disabled (disabling drops focus and breaks the mobile keyboard).
 - **Accessibility**: label always above the input and always present in the DOM - **no placeholder-as-label, ever** (`taste-skill.md` Section 4.6). Placeholder is `--text-tertiary` and only ever supplementary. `font-size` is at least 16px on `type="password"` and `type="text"` below `--bp-md` to prevent iOS Safari's focus zoom - this is the one place a size overrides the type scale, and it is recorded as debt in Section 8.2.
 - **Motion**: border-color and background-color cross-fade at `--dur-micro`. Layout never animates.
@@ -384,7 +385,7 @@ Used by the file explorer, the herdr snapshot list, and the session picker.
 
 - **Structure**: `<li><button class="row" | <a class="row">` with `<span class="row__lead"/>` (icon or status dot), `<span class="row__label"/>` (truncating), `<span class="row__meta"/>` (mono), `<span class="row__actions"/>`.
 - **Variants**: `file`, `directory` (disclosure), `agent` (status dot lead), `session` (status dot lead + mono meta).
-- **Spacing**: block-size `--size-row` / `--size-row-touch`; `padding-inline: --space-3`; internal gap `--space-2`; radius `--radius-md`; divider `--size-hairline` `--border-subtle`.
+- **Spacing**: block-size `--size-row` / `--size-row-touch`; `padding-inline: --space-3`; internal gap `--space-2`; radius `--radius-none`; divider `--size-hairline` `--border-subtle`.
 - **States**: default transparent; hover `--surface-raised`; active `scale(0.99)`; focus-visible standard ring, inset; selected `--accent-muted` fill + `--text-body-strong` + `aria-current`; disabled `opacity: 0.5`; loading - the row keeps its box and shows a 12px indicator in the meta slot (skeleton matches final shape, per `taste-skill.md` Section 4.5); empty - the *list* renders an empty state, never a row.
 - **Per-row actions**: download / edit / delete. On desktop they are `opacity: 0` until row hover or focus-within, but they remain in the DOM and in the tab order at all times - visibility is never the mechanism for keyboard reachability. Below `--bp-md` they are always visible, each at `--size-tap`. Delete opens a confirm dialog; it never fires on first press.
 - **Accessibility**: row label truncates with `title` carrying the full name. Nested interactive elements are siblings of the row button, never descendants of it. Directory disclosure exposes `aria-expanded`.
@@ -405,7 +406,7 @@ Used by the file explorer, the herdr snapshot list, and the session picker.
 
 - **Structure**: `<ol class="toasts" role="region" aria-label="Notifications"><li role="status"|role="alert"><span class="toast__icon"/><div class="toast__body"/><button class="toast__close"/></li></ol>`
 - **Variants**: `info`, `success`, `warning`, `error`.
-- **Spacing**: max inline-size `--size-toast-max`; padding `--space-3`; stack gap `--space-2`; radius `--radius-md`; fill `--surface-elevated`; stroke `--border-default`; a `--size-hairline` inline-start accent in the matching status color; `--text-caption`.
+- **Spacing**: max inline-size `--size-toast-max`; padding `--space-3`; stack gap `--space-2`; radius `--radius-sm`; fill `--surface-elevated`; stroke `--border-default`; a `--size-hairline` inline-start accent in the matching status color; `--text-caption`.
 - **Position**: block-end + inline-end on desktop, offset by `--space-4`. Below `--bp-md`: block-**start**, inset by `--space-3` plus `--safe-top`, because the block-end is owned by the key toolbar and the keyboard. Toasts never cover the key toolbar and never cover the cursor line.
 - **States**: entering; resting; hover/focus-within - auto-dismiss timer pauses; exiting; error variant persists until dismissed (`role="alert"`), all others auto-dismiss after `--dur-toast`.
 - **Stacking**: maximum 3 visible. A 4th collapses the oldest into a `+N more` line. The stack never scrolls.
@@ -417,7 +418,7 @@ Used by the file explorer, the herdr snapshot list, and the session picker.
 
 - **Structure**: `<div class="overlay"><div class="overlay__scrim" data-dismiss/><aside class="drawer" role="dialog" aria-modal="true" aria-label="Workspace panel"/></div>` - an `overlay-stack`, both children in the same grid cell.
 - **Variants**: right-side only.
-- **Spacing**: inline-size `min(var(--size-drawer-max), var(--size-sidebar))`; full block-size; padding `--space-4` plus the safe-area tokens from Section 4.3; radius `--radius-lg` on the inline-start corners only; fill `--surface-elevated`; inline-start stroke `--border-subtle`.
+- **Spacing**: inline-size `min(var(--size-drawer-max), var(--size-sidebar))`; visual-viewport block-size; padding `--space-4` plus the safe-area tokens from Section 4.3; radius `--radius-overlay` on the inline-start corners only; fill `--surface-elevated`; inline-start stroke `--border-subtle`.
 - **States**: closed (not rendered, or `display: none` - never merely `opacity: 0`, which would leave an invisible interactive layer over the terminal); opening; open; closing; dragging (follows the finger 1:1, `transform` only).
 - **Dismissal**: scrim tap, `Escape`, swipe toward inline-end past 40% of the panel width or above a flick velocity threshold, and the toolbar close button. Four routes, because this panel covers the terminal.
 - **Accessibility**: focus moves to the panel on open and returns to the trigger on close. Focus is trapped while open. Background content gets `inert`. `aria-modal="true"`. Body scroll lock is unnecessary (the document never scrolls) but the terminal region gets `inert` so keystrokes cannot leak into the shell while the drawer is open.
@@ -428,7 +429,7 @@ Used by the file explorer, the herdr snapshot list, and the session picker.
 
 - **Structure**: `<div class="overlay"><div class="overlay__scrim"/><div class="dialog" role="dialog" aria-modal="true" aria-labelledby><header/><div class="dialog__body"/><footer/></div></div>`
 - **Variants**: `editor` (monospace body), `picker` (list body), `confirm` (short text body, `--size-login-max` wide).
-- **Responsive**: below `--bp-md` the dialog is full-viewport with `--radius-*: 0` on the outer corners and its own safe-area padding. At `>= --bp-md` it is an `imposter` - centered, `inline-size: min(90vw, var(--size-dialog-max))`, `max-block-size: min(80dvh, 640px)`, radius `--radius-lg`.
+- **Responsive**: below `--bp-md` the dialog follows the visual viewport with `--radius-none` on the outer corners, its own safe-area padding, and a 16px editor text floor. At `>= --bp-md` it is an `imposter` - centered, `inline-size: min(90vw, var(--size-dialog-max))`, `max-block-size: min(80dvh, 640px)`, radius `--radius-overlay`.
 - **Spacing**: header/footer padding `--space-5`; body padding `--space-4`; footer button cluster gap `--space-2`, aligned to inline-end.
 - **States**: closed, opening, open, closing, submitting (footer primary shows loading, body goes `readonly`), error (inline message above the footer, never a nested toast), dirty (see below).
 - **Dirty indicator**: an `--status-warning` chip in the header reading `Unsaved` next to the file name, plus a `•` prefix on the title. Attempting to close while dirty routes through a confirm dialog. Ctrl/Cmd+S saves; `Escape` requests close (and hits the dirty guard).
@@ -443,7 +444,7 @@ The one place chrome becomes physical. Anatomy adapted from the Raycast key-cap 
 
 - **Structure**: `<div class="keybar" role="toolbar" aria-label="Terminal keys" aria-orientation="horizontal"><button class="key" data-key/></div>`
 - **Variants**: `default` (Esc, Tab, `|`, `~`, `/`, `-`, arrows), `modifier` (Ctrl, Alt - latching), `combo` (Ctrl+C - a single labeled shortcut), `action` (Paste - invokes the clipboard API).
-- **Spacing**: min block-size `--size-tap-lg`, min inline-size `--size-tap`; `padding-inline: --space-2`; gap `--space-2`; track `padding-inline: --space-3`; radius `--radius-sm`; `--text-micro` in `--font-mono`.
+- **Spacing**: min block-size `--size-tap-lg`, min inline-size `--size-tap`; `padding-inline: --space-2`; gap `--space-2`; track `padding-inline: --space-3`; radius `--radius-xs`; `--text-micro` in `--font-mono`.
 - **Surface**: `--surface-raised` fill with a `--shadow-key` inset top highlight and `--border-default` stroke over the `--surface-primary` toolbar base, which carries a `--border-subtle` block-start seam.
 - **States**:
   - default.
@@ -469,7 +470,7 @@ The one place chrome becomes physical. Anatomy adapted from the Raycast key-cap 
 ### 5.11 Login Card
 
 - **Structure**: `<main class="login"><form class="login__card"><h1/><Input type=password/><Button variant=primary/></form></main>`
-- **Spacing**: `imposter`-centered on `--surface-canvas`; `inline-size: min(100% - var(--space-8), var(--size-login-max))`; padding `--space-6`; heading-to-field gap `--space-6`; field-to-button gap `--space-4`; radius `--radius-lg`; fill `--surface-primary`; stroke `--border-subtle`.
+- **Spacing**: `imposter`-centered on `--surface-canvas`; `inline-size: min(100% - var(--space-8), var(--size-login-max))`; padding `--space-6`; heading-to-field gap `--space-6`; field-to-button gap `--space-4`; radius `--radius-sm`; fill `--surface-primary`; stroke `--border-subtle`.
 - **States**: idle; submitting (button loading, input `readonly`, `aria-busy`); error (`Incorrect password.` under the field in `--status-error` with `role="alert"`, field takes the error treatment, the input keeps focus and its value is selected); rate-limited (button disabled, message `Too many attempts. Try again in 0:24.` with a mono countdown, `role="status"`, updated once per second and announced only at start and end).
 - **Accessibility**: single `<input type="password" autocomplete="current-password">` with a real visible label. The error message is bound via `aria-describedby` and `aria-invalid`. No password-strength theater, no caps-lock hint, no reveal toggle in v1. Submits on `Enter`. Autofocused on desktop; **not** autofocused below `--bp-md`, because forcing the on-screen keyboard open before the user has oriented is hostile.
 - **Motion**: the card fades in once at `--dur-standard`. On error the field border cross-fades - **no shake**. A shake animation on a failed auth attempt is decoration, and reduced-motion users lose the signal entirely.

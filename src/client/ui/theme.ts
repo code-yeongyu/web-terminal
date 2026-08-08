@@ -7,37 +7,41 @@ export function isMobile(): boolean {
 export function terminalFontSize(): number {
   const stored = Number(localStorage.getItem("wt:font-size"))
   if (Number.isFinite(stored) && stored >= 8 && stored <= 24) return stored
-  return isMobile() ? 14 : 16
+  return isMobile() ? 13 : 14
 }
 
-/** Transcribed from the local Ghostty config's `theme = Nord` (Ghostty.app themes/Nord). */
+/** DESIGN.md 2.2-2.3: accessible ANSI palette on the sunken terminal surface. */
 export const terminalTheme = {
-  background: "#2E3440",
-  foreground: "#D8DEE9",
-  cursor: "#ECEFF4",
-  cursorAccent: "#282828",
-  selectionBackground: "#ECEFF4",
-  selectionForeground: "#4C566A",
-  black: "#3B4252",
-  red: "#BF616A",
-  green: "#A3BE8C",
-  yellow: "#EBCB8B",
-  blue: "#81A1C1",
-  magenta: "#B48EAD",
-  cyan: "#88C0D0",
-  white: "#E5E9F0",
-  brightBlack: "#596377",
-  brightRed: "#BF616A",
-  brightGreen: "#A3BE8C",
-  brightYellow: "#EBCB8B",
-  brightBlue: "#81A1C1",
-  brightMagenta: "#B48EAD",
-  brightCyan: "#8FBCBB",
-  brightWhite: "#ECEFF4",
+  background: "#050607",
+  foreground: "#D6DAE0",
+  cursor: "#5AB2FF",
+  cursorAccent: "#050607",
+  selectionBackground: "rgba(90, 178, 255, 0.30)",
+  selectionForeground: "#F2F3F5",
+  selectionInactiveBackground: "rgba(255, 255, 255, 0.12)",
+  scrollbarSliderBackground: "rgba(255, 255, 255, 0.14)",
+  scrollbarSliderHoverBackground: "rgba(255, 255, 255, 0.22)",
+  scrollbarSliderActiveBackground: "rgba(255, 255, 255, 0.30)",
+  black: "#15181B",
+  red: "#F4736F",
+  green: "#5FD68A",
+  yellow: "#E7B455",
+  blue: "#6AABF0",
+  magenta: "#C79AF0",
+  cyan: "#5FC9D6",
+  white: "#C3C8CE",
+  brightBlack: "#787F87",
+  brightRed: "#FF9490",
+  brightGreen: "#88E9AA",
+  brightYellow: "#F7CE7A",
+  brightBlue: "#93C6F7",
+  brightMagenta: "#DCBBF8",
+  brightCyan: "#8CDEE8",
+  brightWhite: "#F2F3F5",
 } as const
 
-/** Mirrors the local Ghostty config's font-family / font-size. */
+/** Mirrors the design contract's terminal font-family / default font-size. */
 export const GHOSTTY_FONT_FAMILY = '"GeistMono", ui-monospace, Menlo, monospace'
-export const GHOSTTY_FONT_SIZE_PX = 16
+export const GHOSTTY_FONT_SIZE_PX = 14
 export const GHOSTTY_CURSOR_STYLE = "block" as const
 export const GHOSTTY_CURSOR_BLINK = true

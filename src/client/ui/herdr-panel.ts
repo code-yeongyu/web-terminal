@@ -29,7 +29,7 @@ function agentRow(agent: Readonly<Record<string, unknown>>, index: number): HTML
   const name = readString(agent, "name") ?? readString(agent, "agent_id") ?? `Agent ${index + 1}`
   const status = readString(agent, "status") ?? "unknown"
   return el("li", { class: "list__item" }, [
-    el("div", { class: "row" }, [
+    el("div", { class: "row row--static" }, [
       el("span", { class: "row__lead" }, [dot(statusState(status), status)]),
       el("span", { class: "row__label", title: name }, [name]),
       el("span", { class: "row__meta" }, [status]),

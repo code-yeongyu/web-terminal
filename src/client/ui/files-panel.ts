@@ -63,6 +63,15 @@ export function createFilesPanel(actions: FilesPanelActions): FilesPanel {
     ])
   }
 
+  const showLoading = (): void => {
+    replace(body, [
+      el("div", { class: "empty", "aria-busy": "true" }, [
+        el("p", { class: "empty__title" }, ["Loading files…"]),
+        el("p", { class: "empty__hint" }, ["Reading this folder."]),
+      ]),
+    ])
+  }
+
   const rowFor = (entry: DirEntry): HTMLElement => {
     const full = joinPath(cwd, entry.name)
     const isDir = entry.kind === "directory"
@@ -153,6 +162,7 @@ export function createFilesPanel(actions: FilesPanelActions): FilesPanel {
     const version = ++loadVersion
     breadcrumbPath.textContent = cwd === "" ? "~" : `~/${cwd}`
     breadcrumbPath.title = breadcrumbPath.textContent
+    showLoading()
     void apiRequest(`/api/files?path=${encodeURIComponent(cwd)}`, { schema: listResponseSchema })
       .then((data) => {
         if (version !== loadVersion) return

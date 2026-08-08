@@ -26,7 +26,7 @@
   min-block-size: var(--size-control);
   padding-inline: var(--space-3);
   border: var(--size-hairline) solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -104,7 +104,7 @@
   min-block-size: var(--size-control);
   padding-inline: var(--space-3);
   border: var(--size-hairline) solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--surface-secondary);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -161,7 +161,7 @@
   inline-size: min(100% - var(--space-8), var(--size-login-max));
   padding: var(--space-6);
   border: var(--size-hairline) solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   background: var(--surface-primary);
   animation: fade-in var(--dur-standard) var(--ease-out);
 }

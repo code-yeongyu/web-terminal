@@ -61,8 +61,8 @@
   --status-neutral: #80858d;
 
   /* DESIGN.md 2.2 - terminal surface tokens */
-  --term-bg: #2e3440; /* matches terminalTheme.background (Ghostty Nord) */
-  --term-fg: #d8dee9; /* matches terminalTheme.foreground */
+  --term-bg: #050607;
+  --term-fg: #d6dae0;
   --term-cursor: #5ab2ff;
   --term-scrollbar: rgba(255, 255, 255, 0.14);
 
@@ -120,10 +120,10 @@
   --size-hairline: 1px;
 
   /* DESIGN.md 4.3 - radii */
-  --radius-xs: 3px;
-  --radius-sm: 5px;
-  --radius-md: 7px;
-  --radius-lg: 10px;
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-overlay: 4px;
   --radius-full: 9999px;
 
   /* DESIGN.md 4.3 - z-index scale */
@@ -141,6 +141,8 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  --visual-viewport-height: 100dvh;
+  --visual-viewport-offset-top: 0px;
 
   /* DESIGN.md 6.1 - motion */
   --dur-instant: 80ms;
@@ -178,6 +180,7 @@ body {
   margin: 0;
   padding: 0;
   block-size: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -203,14 +206,17 @@ body {
 
 .shell {
   display: grid;
+  position: fixed;
+  inset-block-start: var(--visual-viewport-offset-top);
+  inset-inline: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
   /* Pin the column axis: without minmax(0, 1fr) the rows size to max-content
      and the key toolbar reel blows the shell past the viewport (DESIGN.md 4.4). */
   grid-template-columns: minmax(0, 1fr);
   inline-size: 100%;
   max-inline-size: 100%;
-  block-size: 100dvh;
-  max-block-size: 100dvh;
+  block-size: var(--visual-viewport-height);
+  max-block-size: var(--visual-viewport-height);
   overflow: hidden;
 }
 
@@ -250,7 +256,9 @@ body {
 .overlay {
   display: grid;
   position: fixed;
-  inset: 0;
+  inset-block-start: var(--visual-viewport-offset-top);
+  inset-inline: 0;
+  block-size: var(--visual-viewport-height);
 }
 
 .overlay > * {

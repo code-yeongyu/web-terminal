@@ -15,8 +15,10 @@ type Toolbar = {
   readonly element: HTMLElement
   /** Modifier latch state, read by the terminal key interceptor. */
   readonly modifiers: () => ModifierState
-  /** Clear latches (on drawer/dialog open and compositionstart, DESIGN.md 5.9). */
-  readonly clearLatches: () => void
+  /** Consume one-shot latches while preserving explicitly locked modifiers. */
+  readonly consumeLatches: () => void
+  /** Reset every modifier level on overlay open and compositionstart. */
+  readonly resetModifiers: () => void
 }
 
 type ToolbarActions = {
@@ -42,7 +44,7 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
     "aria-orientation": "horizontal",
   })
   const hint = el("div", { class: "keyhint", role: "status", "aria-live": "polite", hidden: true })
-  const element = el("div", { class: "stack" }, [hint, track])
+  const element = el("div", { class: "stack keybar-shell" }, [hint, track])
 
   const latches = new Map<ModifierId, LatchLevel>([
     ["ctrl", "off"],
@@ -80,10 +82,15 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
     actions.onLatchChange(state())
   }
 
-  const clearLatches = (): void => {
+  const consumeLatches = (): void => {
     for (const [id, level] of latches) {
       if (level === "latched") latches.set(id, "off")
     }
+    paint()
+  }
+
+  const resetModifiers = (): void => {
+    for (const id of latches.keys()) latches.set(id, "off")
     paint()
   }
 
@@ -132,7 +139,7 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
       case "default":
       case "combo":
         actions.sendKeys(applyLatches(def.send, state()))
-        clearLatches()
+        consumeLatches()
         return
       default:
         assertNever(def)
@@ -239,7 +246,7 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
     target.focus()
   })
 
-  return { element, modifiers: state, clearLatches }
+  return { element, modifiers: state, consumeLatches, resetModifiers }
 }
 
 /** Shift remaps Tab/arrows (BackTab, CSI 1;2) or uppercases; Ctrl maps a-z to its control byte; Alt prefixes ESC (DESIGN.md 5.9). */

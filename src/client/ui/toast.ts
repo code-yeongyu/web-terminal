@@ -21,6 +21,7 @@ const AUTO_DISMISS_MS = 5000
 
 export function createToaster(): Toaster {
   const list = el("ol", { class: "toasts", role: "region", "aria-label": "Notifications" })
+  const nodes = new Map<number, HTMLElement>()
   let entries: readonly Entry[] = []
   let nextId = 0
 
@@ -28,6 +29,7 @@ export function createToaster(): Toaster {
     const found = entries.find((entry) => entry.id === id)
     if (found?.timer !== undefined) clearTimeout(found.timer)
     entries = entries.filter((entry) => entry.id !== id)
+    nodes.delete(id)
     render()
   }
 
@@ -37,6 +39,8 @@ export function createToaster(): Toaster {
   }
 
   const renderEntry = (entry: Entry): HTMLElement => {
+    const existing = nodes.get(entry.id)
+    if (existing !== undefined) return existing
     const item = el(
       "li",
       {
@@ -51,12 +55,19 @@ export function createToaster(): Toaster {
         ),
       ],
     )
-    // Hover/focus pauses the auto-dismiss timer (DESIGN.md 5.6).
-    item.addEventListener("pointerenter", () => {
+    const pause = (): void => {
       if (entry.timer !== undefined) clearTimeout(entry.timer)
       entry.timer = undefined
-    })
-    item.addEventListener("pointerleave", () => arm(entry))
+    }
+    const resume = (): void => {
+      if (item.matches(":hover") || item.contains(document.activeElement)) return
+      arm(entry)
+    }
+    item.addEventListener("pointerenter", pause)
+    item.addEventListener("pointerleave", resume)
+    item.addEventListener("focusin", pause)
+    item.addEventListener("focusout", resume)
+    nodes.set(entry.id, item)
     return item
   }
 

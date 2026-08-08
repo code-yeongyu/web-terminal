@@ -1,4 +1,9 @@
 /* ---------- 5.9 Key toolbar ---------- */
+.keybar-shell {
+  position: relative;
+  min-block-size: calc(var(--size-keybar) + var(--safe-bottom));
+}
+
 .keybar {
   gap: var(--space-2);
   min-block-size: var(--size-keybar);
@@ -14,7 +19,7 @@
   min-block-size: var(--size-tap-lg);
   padding-inline: var(--space-2);
   border: var(--size-hairline) solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background: var(--surface-raised);
   box-shadow: var(--shadow-key);
   color: var(--text-primary);
@@ -53,8 +58,11 @@
 }
 
 .keyhint {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 1;
   padding: var(--space-1) var(--space-3);
-  padding-block-end: 0;
   background: var(--surface-primary);
   color: var(--accent-primary);
   font-size: var(--text-micro);
@@ -86,7 +94,7 @@
   padding: var(--space-3);
   border: var(--size-hairline) solid var(--border-default);
   border-inline-start: var(--size-focus-ring) solid var(--status-info);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--surface-elevated);
   color: var(--text-primary);
   font-size: var(--text-caption);
@@ -118,7 +126,7 @@
   min-block-size: var(--size-tap);
   margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-body);

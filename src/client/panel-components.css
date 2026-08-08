@@ -45,7 +45,7 @@
   min-block-size: var(--size-row-touch);
   padding-inline: var(--space-3);
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-none);
   background: transparent;
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -57,6 +57,18 @@
 
 .row:hover {
   background: var(--surface-raised);
+}
+
+.row--static {
+  cursor: default;
+}
+
+.row--static:hover {
+  background: transparent;
+}
+
+.row--static:active {
+  transform: none;
 }
 
 .row:active {
@@ -108,7 +120,7 @@
   inline-size: var(--size-tap);
   min-block-size: var(--size-tap);
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-sans);
