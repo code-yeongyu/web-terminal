@@ -6,6 +6,7 @@
     <string>com.mengmota.web-terminal</string>
     <key>ProgramArguments</key>
     <array>
+        <string>/bin/bash</string>
         <string>/Users/yeongyu/Library/Application Support/web-terminal/scripts/run-launchd.sh</string>
     </array>
     <key>WorkingDirectory</key>
