@@ -1,7 +1,7 @@
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'none'",
-  "connect-src 'self' ws: wss:",
+  "connect-src 'self' ws: wss: data:",
   "font-src 'self' data:",
   "form-action 'self'",
   "frame-ancestors 'none'",
