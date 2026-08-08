@@ -5,6 +5,7 @@ import { loadConfig } from "./config.ts"
 import { FilesApi } from "./files.ts"
 import { HerdrClient } from "./herdr.ts"
 import { checkOrigin, requireAuth } from "./http-util.ts"
+import { withSecurityHeaders } from "./security-headers.ts"
 import { SessionStore } from "./session-store.ts"
 import { createWsHandlers, type WsData } from "./ws-handler.ts"
 
@@ -27,6 +28,13 @@ export async function startServer(env: Readonly<Record<string, string | undefine
   })
   const ctx: ApiContext = { auth, config, files: new FilesApi(config.filesRoot), herdr, sessions }
   const wsHandlers = createWsHandlers(sessions)
+  const assets = Bun.serve({
+    development: env["WT_DEV"] === "1",
+    fetch: () => new Response("not found", { status: 404 }),
+    hostname: "127.0.0.1",
+    port: 0,
+    routes: { "/": indexPage },
+  })
 
   /**
    * One handler, two listeners. `trusted` is fixed per listener at bind time, so
@@ -56,7 +64,13 @@ export async function startServer(env: Readonly<Record<string, string | undefine
     }
     const api = await handleApi(req, serverInstance, ctx, trusted)
     if (api !== undefined) return api
-    return new Response("not found", { status: 404 })
+    if (req.method !== "GET" && req.method !== "HEAD")
+      return new Response("not found", { status: 404 })
+    const assetUrl = new URL(req.url)
+    assetUrl.hostname = "127.0.0.1"
+    assetUrl.port = String(assets.port)
+    assetUrl.protocol = "http:"
+    return fetch(new Request(assetUrl, req))
   }
 
   const listen = (hostname: string, port: number, trusted: boolean) =>
@@ -66,8 +80,10 @@ export async function startServer(env: Readonly<Record<string, string | undefine
       // Dev mode adds a Host-header guard that rejects requests arriving through a
       // tunnel or reverse proxy. Enable it only when explicitly developing locally.
       development: env["WT_DEV"] === "1",
-      routes: { "/": indexPage },
-      fetch: (req, serverInstance) => handleRequest(req, serverInstance, trusted),
+      fetch: async (req, serverInstance) => {
+        const response = await handleRequest(req, serverInstance, trusted)
+        return response === undefined ? undefined : withSecurityHeaders(req, response)
+      },
       websocket: { ...wsHandlers, perMessageDeflate: true },
     })
 
@@ -86,6 +102,7 @@ export async function startServer(env: Readonly<Record<string, string | undefine
     stopAll: (closeActiveConnections?: boolean) => {
       trustedServer?.stop(closeActiveConnections)
       server.stop(closeActiveConnections)
+      assets.stop(closeActiveConnections)
     },
   })
 }

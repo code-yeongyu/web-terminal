@@ -14,7 +14,7 @@ test("server boots, serves the app shell, and rejects unauthenticated API", asyn
     WT_FILES_ROOT: "/tmp",
     WT_HERDR_SOCKET: "/tmp/wt-smoke-no-herdr.sock",
   })
-  stops.push(() => server.stop(true))
+  stops.push(() => server.stopAll(true))
   const base = `http://127.0.0.1:${server.port}`
   const page = await fetch(`${base}/`)
   expect(page.status).toBe(200)

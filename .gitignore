@@ -9,3 +9,4 @@ dist/
 qa-evidence/
 .deploy/
 .deploy-password.txt
+.deploy-password-hash.txt

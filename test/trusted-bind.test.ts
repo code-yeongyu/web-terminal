@@ -15,7 +15,7 @@ const BASE_ENV = {
 
 test("untrusted surface never authenticates from spoofable headers", async () => {
   const server = await startServer({ ...BASE_ENV, WT_PORT: "0" })
-  stops.push(() => server.stop(true))
+  stops.push(() => server.stopAll(true))
   const base = `http://127.0.0.1:${server.port}`
 
   // Every header an attacker can set on a request through Cloudflare must be inert.
@@ -53,7 +53,7 @@ test("trusted bind serves pre-authenticated requests without a password", async 
     WT_TRUSTED_BIND: "127.0.0.1",
     WT_TRUSTED_PORT: "0",
   })
-  stops.push(() => server.stop(true))
+  stops.push(() => server.stopAll(true))
   const trusted = server.trustedServer
   expect(trusted).toBeDefined()
   if (trusted === undefined) throw new Error("unreachable")
@@ -68,6 +68,6 @@ test("trusted bind serves pre-authenticated requests without a password", async 
 
 test("trusted bind is off by default (fails closed)", async () => {
   const server = await startServer({ ...BASE_ENV, WT_PORT: "0" })
-  stops.push(() => server.stop(true))
+  stops.push(() => server.stopAll(true))
   expect(server.trustedServer).toBeUndefined()
 })
