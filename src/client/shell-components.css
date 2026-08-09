@@ -177,10 +177,23 @@
   z-index: 1;
   pointer-events: none;
   white-space: pre;
-  font-family: var(--font-mono);
+  /* Fallback only. The real colours are sampled per cell in ime-preedit.ts: an opaque
+     theme-coloured fill blocks out an app-painted input row, and a transparent one lets
+     the block cursor bleed through the glyph. Both read as a stuck selection. */
   color: var(--term-fg);
   background: var(--term-bg);
+}
+
+/* Matches native Ghostty: the syllable still being composed carries an underline, the
+   already-committed run does not. */
+.term-preedit__composing {
   text-decoration: underline;
+}
+
+.term-preedit__baseline {
+  display: inline-block;
+  inline-size: 0;
+  block-size: 0;
 }
 
 .terminal {

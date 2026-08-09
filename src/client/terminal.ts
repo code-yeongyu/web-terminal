@@ -148,6 +148,15 @@ export async function createTerminalApp(
     connection.sendInput(data),
   )
   const detachImePreedit = attachImePreedit(container, terminal)
+  // ghostty focuses its contenteditable container, so that element — not the hidden
+  // textarea — is what the IME composes into, and macOS anchors the composition to its
+  // caret, which sits at the container's origin. Hand focus to the textarea instead: it
+  // is the element the preedit code keeps parked on the terminal cursor.
+  const redirectFocusToTextarea = (event: FocusEvent): void => {
+    if (event.target !== container) return
+    terminal.textarea?.focus()
+  }
+  container.addEventListener("focusin", redirectFocusToTextarea)
   const detachPinchZoom = attachPinchZoom(container, {
     getFontSize: () => terminal.options.fontSize,
     setFontSize: (size) => {
@@ -214,6 +223,7 @@ export async function createTerminalApp(
       connection.switchSession(sessionId)
     },
     dispose: () => {
+      container.removeEventListener("focusin", redirectFocusToTextarea)
       detachMouseInput()
       detachPinchZoom()
       detachImePreedit()
