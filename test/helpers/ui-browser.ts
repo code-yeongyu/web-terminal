@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type Browser, type BrowserContext, chromium, devices, type Page } from "playwright"
 import { startServer } from "../../src/server/index.ts"
+import { SessionStore } from "../../src/server/session-store.ts"
 
 const PASSWORD = "qa-password-123"
 
@@ -55,13 +56,20 @@ export async function createUiFixture(): Promise<UiFixture> {
   const root = await mkdtemp(join(tmpdir(), "web-terminal-ui-"))
   const sampleFile = "qa-file.txt"
   await writeFile(join(root, sampleFile), "hello from browser QA\n")
-  const server = await startServer({
-    WT_FILES_ROOT: root,
-    WT_HERDR_ATTACH: "0",
-    WT_HERDR_SOCKET: join(root, "no-herdr.sock"),
-    WT_PASSWORD: PASSWORD,
-    WT_PORT: "0",
-  })
+  const server = await startServer(
+    {
+      WT_FILES_ROOT: root,
+      WT_HERDR_ATTACH: "0",
+      WT_HERDR_SOCKET: join(root, "no-herdr.sock"),
+      WT_PASSWORD: PASSWORD,
+      WT_PORT: "0",
+    },
+    {
+      ensureHerdrAtBoot: false,
+      sessions: new SessionStore({ defaultCommand: ["/bin/sh", "-l"] }),
+      startHerdr: async () => undefined,
+    },
+  )
   const browser = await chromium.launch({ headless: true })
   let closed = false
 
@@ -128,6 +136,13 @@ export async function openUi(
   }
 
   const page = await context.newPage()
+  await page.route("**/api/herdr/snapshot", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: { status: "unavailable" },
+      status: 503,
+    })
+  })
   await beforeGoto?.(page)
   await page.goto(fixture.base)
   await page.locator("#password").fill(PASSWORD)

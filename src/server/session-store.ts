@@ -71,6 +71,10 @@ type CreateSessionOptions = Partial<PtyOptions> & { readonly title?: string }
 
 type Listener = { readonly onOutput: OutputListener; readonly onExit: ExitListener }
 
+type SessionStoreOptions = {
+  readonly defaultCommand?: readonly string[]
+}
+
 export class TerminalSession {
   readonly id: SessionId
   readonly buffer = new ReplayBuffer(BUFFER_CAPACITY_BYTES)
@@ -168,10 +172,20 @@ export class TerminalSession {
 
 export class SessionStore {
   readonly #sessions = new Map<SessionId, TerminalSession>()
+  readonly #defaultCommand: readonly string[] | undefined
+
+  constructor(options: SessionStoreOptions = {}) {
+    this.#defaultCommand = options.defaultCommand
+  }
 
   create(options: CreateSessionOptions = {}): TerminalSession {
     const id = sessionIdSchema.parse(crypto.randomUUID())
-    const session = new TerminalSession(id, options)
+    const session = new TerminalSession(id, {
+      ...options,
+      ...(options.command === undefined && this.#defaultCommand !== undefined
+        ? { command: this.#defaultCommand }
+        : {}),
+    })
     this.#sessions.set(id, session)
     return session
   }

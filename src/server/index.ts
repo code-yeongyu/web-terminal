@@ -12,19 +12,30 @@ import { createWsHandlers, type WsData } from "./ws-handler.ts"
 const GHOSTTY_WASM_PATH = new URL("../../node_modules/ghostty-web/ghostty-vt.wasm", import.meta.url)
   .pathname
 
-export async function startServer(env: Readonly<Record<string, string | undefined>> = process.env) {
+type StartServerOptions = {
+  readonly ensureHerdrAtBoot?: boolean
+  readonly sessions?: SessionStore
+  readonly startHerdr?: () => Promise<void>
+}
+
+export async function startServer(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+  options: StartServerOptions = {},
+) {
   const config = await loadConfig(env)
   const auth = new Auth({ passwordHash: config.passwordHash })
-  const sessions = new SessionStore()
+  const sessions = options.sessions ?? new SessionStore()
   const herdr = new HerdrClient({
     socketPath: config.herdrSocket,
-    startServer: async () => {
-      Bun.spawn(["herdr", "server"], {
-        stdout: "ignore",
-        stderr: "ignore",
-        stdin: "ignore",
-      }).unref()
-    },
+    startServer:
+      options.startHerdr ??
+      (async () => {
+        Bun.spawn(["herdr", "server"], {
+          stdout: "ignore",
+          stderr: "ignore",
+          stdin: "ignore",
+        }).unref()
+      }),
   })
   const ctx: ApiContext = { auth, config, files: new FilesApi(config.filesRoot), herdr, sessions }
   const wsHandlers = createWsHandlers(sessions)
@@ -93,9 +104,11 @@ export async function startServer(env: Readonly<Record<string, string | undefine
       ? undefined
       : listen(config.trustedBind, config.trustedPort ?? config.port, true)
 
-  void herdr.ensureRunning().catch((error: unknown) => {
-    console.error("herdr ensure failed at boot:", error instanceof Error ? error.message : error)
-  })
+  if (options.ensureHerdrAtBoot !== false) {
+    void herdr.ensureRunning().catch((error: unknown) => {
+      console.error("herdr ensure failed at boot:", error instanceof Error ? error.message : error)
+    })
+  }
 
   return Object.assign(server, {
     trustedServer,
