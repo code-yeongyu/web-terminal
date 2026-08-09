@@ -121,6 +121,9 @@ async function renderApp(): Promise<void> {
       ),
   })
   terminalApp = created
+  // Composition follows the focused element; make sure it is the caret-tracked textarea
+  // from the very first keystroke, not only after a tap or a chrome interaction.
+  created.terminal.textarea?.focus()
   created.terminal.textarea?.addEventListener("compositionstart", toolbar.resetModifiers)
 
   // QA hook consumed by script/qa/e2e-scenarios.mjs. Object.assign avoids an `as` cast.
