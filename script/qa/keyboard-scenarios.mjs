@@ -48,6 +48,7 @@ try {
   await page.goto(base)
   await page.locator(".terminal canvas").waitFor()
   await page.waitForFunction(() => globalThis.__wt?.connection.sessionId !== undefined)
+  if (precreateSession) await waitForOutputLine(page, "__WT_QA_READY__")
 
   const isolation = await page.evaluate(async () => {
     const response = await fetch("/api/sessions")

@@ -49,7 +49,14 @@ export async function prepareStandaloneSession(context, base, password, title, p
   let preparedSessionId
   if (precreate) {
     const created = await context.request.post(`${base}/api/sessions`, {
-      data: { command: ["/bin/zsh", "-l"], title },
+      data: {
+        command: [
+          "/bin/sh",
+          "-c",
+          "export LANG=en_US.UTF-8 LC_CTYPE=UTF-8; printf '__WT_QA_READY__\\n'; exec /bin/zsh -f",
+        ],
+        title,
+      },
     })
     if (!created.ok()) throw new Error(`session creation failed with ${created.status()}`)
     preparedSessionId = (await created.json()).session.id

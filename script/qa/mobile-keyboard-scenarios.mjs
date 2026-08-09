@@ -79,6 +79,7 @@ try {
   await page.goto(base)
   await page.locator(".terminal canvas").waitFor()
   await page.waitForFunction(() => globalThis.__wt?.connection.sessionId !== undefined)
+  if (precreateSession) await waitForOutputLine(page, "__WT_QA_READY__")
   const initialSessionId = await page.evaluate(() => globalThis.__wt?.connection.sessionId)
   const after = (await (await context.request.get(`${base}/api/sessions`)).json()).sessions
   record(
