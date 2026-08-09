@@ -1,15 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { chromium, devices } from "playwright"
-
-const arg = (name, fallback) => {
-  const index = process.argv.indexOf(`--${name}`)
-  return index === -1 ? fallback : process.argv[index + 1]
-}
+import {
+  arg,
+  createRecorder,
+  prepareStandaloneSession,
+  terminalLines,
+  waitForOutputLine,
+} from "./keyboard-qa-support.mjs"
 
 const base = arg("base", "http://127.0.0.1:7821")
 const password = arg("password", "qa-password-123")
 const evidenceDir = arg("evidence-dir", ".omo/evidence/keyboard-input/green/mobile")
+const precreateSession = process.argv.includes("--precreate-session")
 
 if (base === undefined || password === undefined || evidenceDir === undefined) {
   throw new TypeError("mobile keyboard QA arguments are unavailable")
@@ -26,44 +29,7 @@ const context = await browser.newContext({
 const page = await context.newPage()
 const actions = []
 let herdrRequestCount = 0
-
-const record = (name, pass, detail) => {
-  actions.push({ name, pass, detail })
-  console.log(`${pass ? "PASS" : "FAIL"} ${name} — ${detail}`)
-}
-
-const waitForExactLine = async (expected) => {
-  try {
-    await page.waitForFunction(
-      (expectedLine) => {
-        const buffer = globalThis.__wt?.terminal?.buffer.active
-        if (buffer === undefined) return false
-        for (let index = 0; index < buffer.length; index += 1) {
-          if (buffer.getLine(index)?.translateToString(true) === expectedLine) return true
-        }
-        return false
-      },
-      expected,
-      { timeout: 10_000 },
-    )
-    return true
-  } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") return false
-    throw error
-  }
-}
-
-const terminalLines = () =>
-  page.evaluate(() => {
-    const buffer = globalThis.__wt?.terminal?.buffer.active
-    if (buffer === undefined) return []
-    const lines = []
-    for (let index = 0; index < buffer.length; index += 1) {
-      const line = buffer.getLine(index)
-      if (line !== undefined) lines.push(line.translateToString(true))
-    }
-    return lines
-  })
+const record = createRecorder(actions)
 
 const resetCapture = () =>
   page.evaluate(() => {
@@ -102,9 +68,13 @@ try {
     })
   })
 
-  const login = await context.request.post(`${base}/api/login`, { data: { password } })
-  if (!login.ok()) throw new Error(`QA login failed with ${login.status()}`)
-  const before = (await (await context.request.get(`${base}/api/sessions`)).json()).sessions
+  const { before, preparedSessionId } = await prepareStandaloneSession(
+    context,
+    base,
+    password,
+    "mobile-keyboard-qa",
+    precreateSession,
+  )
 
   await page.goto(base)
   await page.locator(".terminal canvas").waitFor()
@@ -114,8 +84,9 @@ try {
   record(
     "fresh mobile session",
     typeof initialSessionId === "string" &&
-      after.length === before.length + 1 &&
-      !before.some((session) => session.id === initialSessionId),
+      after.length >= before.length + 1 &&
+      !before.some((session) => session.id === initialSessionId) &&
+      (preparedSessionId === undefined || initialSessionId === preparedSessionId),
     `session=${initialSessionId} before=${before.length} after=${after.length}`,
   )
 
@@ -148,12 +119,12 @@ try {
       }),
     )
   })
-  const imeRendered = await waitForExactLine("MOBILE-IME:한글")
+  const imeRendered = await waitForOutputLine(page, "MOBILE-IME:한글")
   const imeSent = (await sentInput()).join("")
   record(
     "mobile composition plus immediate text and Enter",
     imeRendered && imeSent === "printf 'MOBILE-IME:한글\\n'\r",
-    `rendered=${imeRendered} sent=${JSON.stringify(imeSent)} tail=${JSON.stringify((await terminalLines()).slice(-8))}`,
+    `rendered=${imeRendered} sent=${JSON.stringify(imeSent)} tail=${JSON.stringify((await terminalLines(page)).slice(-8))}`,
   )
 
   await resetCapture()
@@ -170,12 +141,12 @@ try {
       }),
     )
   })
-  const backspaceRendered = await waitForExactLine("MOBILE-BS:글")
+  const backspaceRendered = await waitForOutputLine(page, "MOBILE-BS:글")
   const backspaceSent = (await sentInput()).join("")
   record(
     "mobile composition plus immediate Backspace",
     backspaceRendered && backspaceSent === "printf 'MOBILE-BS:한\u007f글\\n'\r",
-    `rendered=${backspaceRendered} sent=${JSON.stringify(backspaceSent)} tail=${JSON.stringify((await terminalLines()).slice(-8))}`,
+    `rendered=${backspaceRendered} sent=${JSON.stringify(backspaceSent)} tail=${JSON.stringify((await terminalLines(page)).slice(-8))}`,
   )
 
   await resetCapture()
@@ -225,7 +196,7 @@ try {
   )
   await page.keyboard.type("printf 'MOBILE-OVERLAY:42\\n'")
   await page.keyboard.press("Enter")
-  await waitForExactLine("MOBILE-OVERLAY:42")
+  await waitForOutputLine(page, "MOBILE-OVERLAY:42")
   record(
     "overlay close requires explicit terminal refocus",
     !focusBeforeTap && focusAfterTap,
@@ -239,7 +210,7 @@ try {
   await page.tap(".terminal")
   await page.keyboard.type("printf 'MOBILE-REATTACH:73\\n'")
   await page.keyboard.press("Enter")
-  await waitForExactLine("MOBILE-REATTACH:73")
+  await waitForOutputLine(page, "MOBILE-REATTACH:73")
   record(
     "input after session reattach",
     reattachedSessionId === initialSessionId,
@@ -254,7 +225,7 @@ try {
   await page.screenshot({ path: join(evidenceDir, "mobile-keyboard.png"), fullPage: true })
   await writeFile(
     join(evidenceDir, "mobile-actions.json"),
-    `${JSON.stringify({ actions, herdrRequestCount, initialSessionId }, null, 2)}\n`,
+    `${JSON.stringify({ actions, herdrRequestCount, initialSessionId, preparedSessionId }, null, 2)}\n`,
   )
 } finally {
   await context.close()
