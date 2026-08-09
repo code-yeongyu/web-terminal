@@ -6,8 +6,16 @@ on:
     tags: ["v*"]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -20,6 +28,14 @@ jobs:
           bun-version: canary
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            bunx playwright install --with-deps chromium
+          else
+            bunx playwright install chromium
+          fi
       - name: Lint (Biome)
         run: bunx biome ci .
       - name: Typecheck (tsgo)
