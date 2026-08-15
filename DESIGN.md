@@ -443,7 +443,7 @@ Used by the file explorer, the herdr snapshot list, and the session picker.
 The one place chrome becomes physical. Anatomy adapted from the Raycast key-cap reference, flattened to two shadow layers so it stays cheap to composite above a live canvas.
 
 - **Structure**: `<div class="keybar" role="toolbar" aria-label="Terminal keys" aria-orientation="horizontal"><button class="key" data-key/></div>`
-- **Variants**: `default` (Esc, Tab, `|`, `~`, `/`, `-`, arrows), `modifier` (Ctrl, Alt - latching), `combo` (Ctrl+C - a single labeled shortcut), `action` (Paste - invokes the clipboard API).
+- **Variants**: `default` (Esc, Tab, `|`, `~`, `/`, `-`, arrows), `modifier` (Ctrl, Alt - latching), `combo` (Ctrl+C - a single labeled shortcut), `action` (Paste - clipboard API when allowed, with a native-paste fallback and system-paste guidance when Safari blocks programmatic reads).
 - **Spacing**: min block-size `--size-tap-lg`, min inline-size `--size-tap`; `padding-inline: --space-2`; gap `--space-2`; track `padding-inline: --space-3`; radius `--radius-xs`; `--text-micro` in `--font-mono`.
 - **Surface**: `--surface-raised` fill with a `--shadow-key` inset top highlight and `--border-default` stroke over the `--surface-primary` toolbar base, which carries a `--border-subtle` block-start seam.
 - **States**:

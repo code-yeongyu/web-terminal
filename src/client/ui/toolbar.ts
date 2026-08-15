@@ -113,6 +113,13 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
   }
 
   const pasteFromClipboard = (): void => {
+    if (navigator.clipboard === undefined) {
+      // No programmatic clipboard access: route to the system paste affordance
+      // on the focused terminal input instead of failing silently.
+      actions.focusTerminal()
+      actions.onError("Clipboard unavailable — use the Paste key above the keyboard.")
+      return
+    }
     void navigator.clipboard
       .readText()
       .then((text) => {
@@ -120,7 +127,16 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
       })
       .catch((error: unknown) => {
         if (!(error instanceof Error)) throw error
-        actions.onError("Clipboard read was blocked.")
+        if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+          // Safari (especially Add-to-Home-Screen standalone mode) blocks
+          // programmatic clipboard reads. The native paste event on the focused
+          // textarea is the working path; leave the terminal focused so the
+          // system Paste affordance is one tap away.
+          actions.focusTerminal()
+          actions.onError("Safari blocked clipboard access — use the Paste key above the keyboard.")
+          return
+        }
+        actions.onError("Clipboard read failed.")
       })
   }
 

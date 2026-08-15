@@ -4,6 +4,7 @@ import { type ConnectionState, TerminalConnection } from "./connection.ts"
 import { attachImeInputForwarding } from "./ime-input.ts"
 import { attachImePreedit } from "./ime-preedit.ts"
 import { attachMouseInput } from "./mouse-input.ts"
+import { attachNativePasteForwarding } from "./paste-input.ts"
 import { attachPinchZoom } from "./pinch-zoom.ts"
 import { attachTouchScroll } from "./touch-scroll.ts"
 
@@ -147,6 +148,14 @@ export async function createTerminalApp(
   const detachImeForwarding = attachImeInputForwarding(container, (data) =>
     connection.sendInput(data),
   )
+  // Native keyboard/system paste on the focused textarea is the primary paste
+  // path (Safari iOS/PWA blocks programmatic clipboard reads). Attach only once
+  // the textarea exists, and stop ghostty-web's own handler from double-sending.
+  const textarea = terminal.textarea
+  const detachNativePaste =
+    textarea === undefined
+      ? undefined
+      : attachNativePasteForwarding(textarea, (text) => terminal.paste(text))
   const detachImePreedit = attachImePreedit(container, terminal)
   const detachPinchZoom = attachPinchZoom(container, {
     getFontSize: () => terminal.options.fontSize,
@@ -214,6 +223,7 @@ export async function createTerminalApp(
       connection.switchSession(sessionId)
     },
     dispose: () => {
+      detachNativePaste?.()
       detachMouseInput()
       detachPinchZoom()
       detachImePreedit()
