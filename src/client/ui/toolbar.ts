@@ -173,10 +173,6 @@ export function createToolbar(actions: ToolbarActions): Toolbar {
     })
     if ("icon" in def) cap.appendChild(icon(def.icon))
     else cap.textContent = def.label
-    if (def.kind === "action" && def.id === "paste" && navigator.clipboard === undefined) {
-      cap.disabled = true
-      cap.setAttribute("aria-disabled", "true")
-    }
 
     let repeatDelay: ReturnType<typeof setTimeout> | undefined
     let repeatTimer: ReturnType<typeof setInterval> | undefined

@@ -215,4 +215,30 @@ describe("paste input regression", () => {
       await context.close()
     }
   })
+
+  test("toolbar paste with no clipboard API focuses the terminal and shows guidance", async () => {
+    const { context, page } = await openUi(fixture, "mobile")
+    try {
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: undefined,
+        })
+      })
+      await page.locator('[data-key="paste"]').click()
+      const toast = page.locator('.toast[data-tone="error"]')
+      await toast.waitFor()
+      const message = await toast.textContent()
+      expect(message).toContain("Clipboard unavailable — use the Paste key above the keyboard.")
+      const focused = await page.evaluate(() => {
+        const app = Reflect.get(globalThis, "__wt")
+        const terminal = Reflect.get(app, "terminal")
+        const textarea = Reflect.get(terminal, "textarea")
+        return textarea instanceof HTMLTextAreaElement && document.activeElement === textarea
+      })
+      expect(focused).toBe(true)
+    } finally {
+      await context.close()
+    }
+  })
 })
