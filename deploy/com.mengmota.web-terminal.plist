@@ -26,7 +26,7 @@
         <false/>
     </dict>
     <key>ProcessType</key>
-    <string>Background</string>
+    <string>Interactive</string>
     <key>ThrottleInterval</key>
     <integer>10</integer>
     <key>Umask</key>
