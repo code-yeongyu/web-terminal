@@ -18,6 +18,18 @@ import { createTopBar } from "./ui/topbar.ts"
 const appRoot = document.getElementById("app")
 if (appRoot === null) throw new TypeError("missing #app root")
 const app: HTMLElement = appRoot
+let activeTerminal: TerminalApp | undefined
+let terminalConnected = false
+const pendingKeys: string[] = []
+const PENDING_KEY_LIMIT = 256
+
+// connection.sendInput() drops silently unless the socket is OPEN, so the replay needs
+// both the terminal and the socket; whichever arrives second triggers it.
+function flushPendingKeys(): void {
+  if (pendingKeys.length === 0 || activeTerminal === undefined || !terminalConnected) return
+  activeTerminal.sendKeys(pendingKeys.join(""))
+  pendingKeys.length = 0
+}
 
 async function renderApp(): Promise<void> {
   const toaster = createToaster()
@@ -104,7 +116,11 @@ async function renderApp(): Promise<void> {
     onState: (state) => {
       topBar.setState(state)
       if (state === "reconnecting") toaster.show("Reconnecting…", "warning")
-      if (state === "connected") topBar.setSessionLabel(labelFor(terminalApp))
+      if (state === "connected") {
+        topBar.setSessionLabel(labelFor(terminalApp))
+        terminalConnected = true
+        flushPendingKeys()
+      }
     },
     onLatency: topBar.setLatency,
     onTitle: (title) => {
@@ -121,6 +137,8 @@ async function renderApp(): Promise<void> {
       ),
   })
   terminalApp = created
+  activeTerminal = created
+  flushPendingKeys()
   created.terminal.textarea?.addEventListener("compositionstart", toolbar.resetModifiers)
 
   // QA hook consumed by script/qa/e2e-scenarios.mjs. Object.assign avoids an `as` cast.
@@ -229,7 +247,49 @@ function applyResponsiveLayout(
   }
 }
 
+function isEditable(node: EventTarget | null): boolean {
+  return (
+    node instanceof HTMLInputElement ||
+    node instanceof HTMLTextAreaElement ||
+    node instanceof HTMLSelectElement ||
+    (node instanceof HTMLElement && node.isContentEditable)
+  )
+}
+
+function activatesOnSpace(node: EventTarget | null): boolean {
+  if (!(node instanceof HTMLElement)) return false
+  return (
+    node.tagName === "BUTTON" ||
+    node.tagName === "A" ||
+    node.tagName === "SUMMARY" ||
+    node.getAttribute("role") === "button"
+  )
+}
+
+// A printable key on a non-editable target is a key the user meant for the shell: focus
+// sits on <body> through the login round trip and the WASM/webfont load, and on a chrome
+// button after any sidebar click. Firefox turns those into quick find, whose find bar then
+// keeps focus and eats the rest of the session, so route them to the PTY instead. Space on
+// a button still activates it, and modified keys stay with the browser.
+function routeStrayKeyToTerminal(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+  if (event.key.length !== 1) return
+  if (isEditable(event.target)) return
+  if (event.key === " " && activatesOnSpace(event.target)) return
+  event.preventDefault()
+  if (activeTerminal === undefined) {
+    // Typed during the WASM/webfont load, which is seconds long on a tunnel. Hold the
+    // text and replay it at the prompt once the PTY exists. Enter is never buffered
+    // (key.length > 1), so nothing the user typed blind can execute on its own.
+    if (pendingKeys.length < PENDING_KEY_LIMIT) pendingKeys.push(event.key)
+    return
+  }
+  activeTerminal.terminal.textarea?.focus()
+  activeTerminal.sendKeys(event.key)
+}
+
 async function boot(): Promise<void> {
+  document.addEventListener("keydown", routeStrayKeyToTerminal, true)
   if (await checkAuthed()) {
     await renderApp()
   } else {
