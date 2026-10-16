@@ -1,6 +1,7 @@
 import { FitAddon, init, Terminal } from "ghostty-web"
 import { type SessionId, sessionIdSchema } from "../shared/protocol.ts"
 import { type ConnectionState, TerminalConnection } from "./connection.ts"
+import { attachHangulKeydownIme } from "./hangul-keydown-ime.ts"
 import { attachImeInputForwarding } from "./ime-input.ts"
 import { attachImePreedit } from "./ime-preedit.ts"
 import { attachMouseInput } from "./mouse-input.ts"
@@ -147,6 +148,7 @@ export async function createTerminalApp(
   const detachImeForwarding = attachImeInputForwarding(container, (data) =>
     connection.sendInput(data),
   )
+  const detachHangulKeydown = attachHangulKeydownIme(container, terminal)
   const detachImePreedit = attachImePreedit(container, terminal)
   const detachPinchZoom = attachPinchZoom(container, {
     getFontSize: () => terminal.options.fontSize,
@@ -216,6 +218,7 @@ export async function createTerminalApp(
     dispose: () => {
       detachMouseInput()
       detachPinchZoom()
+      detachHangulKeydown()
       detachImePreedit()
       detachImeForwarding()
       detachTouchScroll()
