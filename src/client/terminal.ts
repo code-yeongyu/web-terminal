@@ -1,5 +1,6 @@
-import { FitAddon, init, Terminal } from "ghostty-web"
-import { type SessionId, sessionIdSchema } from "../shared/protocol.ts"
+import { createGhosttyTerminal, loadGhosttyRuntime } from "@openclaw/libterminal/browser"
+import type { Terminal } from "ghostty-web"
+import { DEFAULT_TERMINAL_DIMENSIONS, type SessionId, sessionIdSchema } from "../shared/protocol.ts"
 import { type ConnectionState, TerminalConnection } from "./connection.ts"
 import { attachImeInputForwarding } from "./ime-input.ts"
 import { attachImePreedit } from "./ime-preedit.ts"
@@ -71,16 +72,21 @@ function applyGhosttyCellMetrics(terminal: Terminal): void {
 }
 
 async function preloadTerminalFont(): Promise<void> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
   try {
     await Promise.race([
       Promise.all([
         document.fonts.load(`${DEFAULT_FONT_SIZE}px "GeistMono"`),
         document.fonts.load(`${DEFAULT_FONT_SIZE}px "IBMPlexSansKR"`, "한"),
       ]),
-      new Promise((resolvePromise) => setTimeout(resolvePromise, 1500)),
+      new Promise((resolvePromise) => {
+        timeout = setTimeout(resolvePromise, 1500)
+      }),
     ])
   } catch {
     // font stays on the system fallback; terminal still works
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -89,26 +95,35 @@ export async function createTerminalApp(
   theme: TerminalTheme,
   events: TerminalAppEvents,
 ): Promise<TerminalApp> {
-  await init()
+  const runtime = await loadGhosttyRuntime()
   await preloadTerminalFont()
-  const terminal = new Terminal({
-    cursorBlink: true,
-    cursorStyle: "block",
-    fontSize: DEFAULT_FONT_SIZE,
-    fontFamily: TERMINAL_FONT_FAMILY,
-    scrollback: TERMINAL_SCROLLBACK_LINES,
-    theme,
+  const controller = await createGhosttyTerminal({
+    parent: container,
+    runtime,
+    readOnly: false,
+    // Apply our font metrics before the first fit; automatic resize stays enabled.
+    size: {
+      columns: DEFAULT_TERMINAL_DIMENSIONS.cols,
+      rows: DEFAULT_TERMINAL_DIMENSIONS.rows,
+    },
+    terminalOptions: {
+      cursorBlink: true,
+      cursorStyle: "block",
+      fontSize: DEFAULT_FONT_SIZE,
+      fontFamily: TERMINAL_FONT_FAMILY,
+      scrollback: TERMINAL_SCROLLBACK_LINES,
+      theme,
+    },
   })
-  const fitAddon = new FitAddon()
-  terminal.loadAddon(fitAddon)
-  terminal.open(container)
+  const terminal = controller.terminal
+  let disposed = false
 
   const fit = (): void => {
+    if (disposed) return
     applyGhosttyCellMetrics(terminal)
-    fitAddon.fit()
+    controller.fit()
   }
   fit()
-  fitAddon.observeResize()
   // Focus the hidden textarea, not the container: ghostty's focus() targets the
   // contenteditable container whose beforeinput is prevented, which silently drops
   // IME/composed text (Korean). The textarea forwards input correctly.
@@ -139,11 +154,16 @@ export async function createTerminalApp(
   // The initial fit can run before stylesheets apply (wrong container width) and
   // before the webfont swaps in (wrong cell metrics). Refit after first paint and
   // again when every font is ready; both are no-ops when the size already matches.
-  requestAnimationFrame(fit)
+  const fitFrame = requestAnimationFrame(fit)
   // ghostty-web's fit() drops calls made within 50ms of a resize (_isResizing
   // lock), which eats the early load-time refits. The final, correct-metrics fit
   // must land after the font swap AND past the lock window.
-  void document.fonts.ready.then(() => setTimeout(() => fitAddon.fit(), 120)).catch(() => undefined)
+  let fontFitTimer: ReturnType<typeof setTimeout> | undefined
+  void document.fonts.ready
+    .then(() => {
+      if (!disposed) fontFitTimer = setTimeout(fit, 120)
+    })
+    .catch(() => undefined)
   const detachImeForwarding = attachImeInputForwarding(container, (data) =>
     connection.sendInput(data),
   )
@@ -195,7 +215,7 @@ export async function createTerminalApp(
   })
   terminal.onResize(({ cols, rows }) => connection.sendResize(cols, rows))
   terminal.onTitleChange(events.onTitle)
-  window.addEventListener("resize", () => fitAddon.fit())
+  window.addEventListener("resize", fit)
   const storedSession = sessionIdSchema.safeParse(localStorage.getItem(SESSION_STORAGE_KEY))
   connection.connect(
     terminal.cols,
@@ -214,13 +234,18 @@ export async function createTerminalApp(
       connection.switchSession(sessionId)
     },
     dispose: () => {
+      if (disposed) return
+      disposed = true
+      cancelAnimationFrame(fitFrame)
+      clearTimeout(fontFitTimer)
+      window.removeEventListener("resize", fit)
       detachMouseInput()
       detachPinchZoom()
       detachImePreedit()
       detachImeForwarding()
       detachTouchScroll()
       connection.close()
-      terminal.dispose()
+      controller.dispose()
     },
   }
 }
