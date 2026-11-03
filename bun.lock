@@ -5,6 +5,7 @@
     "": {
       "name": "web-terminal",
       "dependencies": {
+        "@openclaw/libterminal": "0.4.0",
         "ghostty-web": "^0.4.0",
         "zod": "^4.4.3",
       },
@@ -34,6 +35,8 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.5.7", "", { "os": "win32", "cpu": "arm64" }, "sha512-Oq4x0CCwP4jirrcTywXs5kOGZ4v5vuEP+gWrbtjApOA2CL9F3F9GlIdQIci8AKSCa/zURanMRpX/4wQ7Am6hHg=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.7", "", { "os": "win32", "cpu": "x64" }, "sha512-V+0wu/nrj2S+MhP4EQ0uHNolP0IALEsz45pg0WoKkHfDeh0+ItHwP/p7bX5RPoMOl9NkpHYWdYPhIcy2mACHvQ=="],
+
+    "@openclaw/libterminal": ["@openclaw/libterminal@0.4.0", "", { "peerDependencies": { "ghostty-web": "0.4.0", "node-pty": ">=1.0.0" }, "optionalPeers": ["ghostty-web", "node-pty"] }, "sha512-MlvUFuvcUkTCfXwOtxiGXa8mOUkGChXIqJscauSGrzT0wzWcMXj8+aLS1Izrz4rL4ADKf5KaA7X2riBV8kamAw=="],
 
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 

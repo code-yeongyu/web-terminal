@@ -18,6 +18,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@openclaw/libterminal": "0.4.0",
     "ghostty-web": "^0.4.0",
     "zod": "^4.4.3"
   },
